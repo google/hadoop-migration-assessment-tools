@@ -17,3 +17,20 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+## Building 
+
+Install bazel:
+
+```
+sudo apt-get update
+sudo apt-get install bazel
+```
+
+Build the dist zip files:
+
+```
+bazel build //dist:all
+```
+
+Zip files will be available under `bazel-bin/dist` directory.
