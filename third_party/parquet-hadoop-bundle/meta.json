@@ -1,0 +1,5 @@
+{
+  "projectName": "Apache Parquet Hadoop Bundle",
+  "projectUrl": "https://parquet.apache.org",
+  "repositoryUrl": "scm:git:git@github.com:apache/parquet-mr.git"
+}
