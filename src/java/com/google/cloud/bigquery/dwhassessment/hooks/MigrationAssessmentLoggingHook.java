@@ -39,8 +39,7 @@ import org.slf4j.LoggerFactory;
 /** Hook, which captures query events and stores them as {@link GenericRecord}. */
 public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(MigrationAssessmentLoggingHook.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(MigrationAssessmentLoggingHook.class);
 
   private static final Schema QUERY_EVENT_SCHEMA = AvroSchemaLoader.loadSchema("QueryEvents.avsc");
 
