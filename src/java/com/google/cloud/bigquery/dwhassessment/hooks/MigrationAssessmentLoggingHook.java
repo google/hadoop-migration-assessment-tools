@@ -45,7 +45,7 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
   private static final Schema QUERY_EVENT_SCHEMA = AvroSchemaLoader.loadSchema("QueryEvents.avsc");
 
   // Just for the example. Real hook will write it to the file
-  public ArrayList<GenericRecord> records = new ArrayList<>();
+  public List<GenericRecord> records = new ArrayList<>();
 
   public void run(HookContext hookContext) throws Exception {
     processQueryEventAvro(hookContext);
@@ -54,7 +54,7 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
   private void processQueryEventAvro(HookContext hookContext) {
     QueryPlan plan = hookContext.getQueryPlan();
 
-    LOG.info("Received hook notification for: " + plan.getQueryId());
+    LOG.info("Received hook notification for: {}", plan.getQueryId());
 
     // Make a copy so that we do not modify hookContext conf.
     HiveConf conf = new HiveConf(hookContext.getConf());
@@ -76,14 +76,14 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
             .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
             .build();
     records.add(queryEvent);
-    LOG.info("Processed record: " + queryEvent.toString());
+    LOG.info("Processed record: {}", queryEvent);
   }
 
   private List<String> getTablesFromEntitySet(Set<? extends Entity> entities) {
     List<String> tableNames = new ArrayList<>();
     for (Entity entity : entities) {
       if (entity.getType() == TABLE || entity.getType() == PARTITION) {
-        tableNames.add(entity.getTable().getDbName() + "." + entity.getTable().getTableName());
+        tableNames.add(entity.getTable().getCompleteName());
       }
     }
     return tableNames;
@@ -107,11 +107,9 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
         }
       }
       return ExecutionMode.TEZ;
-    } else if (mrTasks.size() > 0) {
-      return ExecutionMode.MR;
-    } else {
-      return ExecutionMode.NONE;
     }
+
+    return mrTasks.size() > 0 ? ExecutionMode.MR : ExecutionMode.NONE;
   }
 
   private String getQueueName(ExecutionMode mode, HiveConf conf) {
