@@ -15,12 +15,26 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks.utils;
 
-/** Utilities class for getting the time. */
-public final class Clock {
-  /** Returns current system time in milliseconds. */
-  public static long getTime() {
-    return System.currentTimeMillis();
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+
+/** {@inheritDoc} Clock class implementation for getting the current system time in UTC. */
+public class SystemClock extends Clock {
+
+  @Override
+  public ZoneId getZone() {
+    return ZoneOffset.UTC;
   }
 
-  private Clock() {}
+  @Override
+  public Clock withZone(ZoneId zone) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Instant instant() {
+    return Instant.now();
+  }
 }
