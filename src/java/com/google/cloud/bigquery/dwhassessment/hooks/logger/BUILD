@@ -11,24 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-load("@rules_java//java:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_java//java:defs.bzl", "java_library")
 
 package(default_visibility = ["//src:internal"])
 
 java_library(
-    name = "hooks",
+    name = "logger",
     srcs = glob(["*.java"]),
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_apache_avro_avro",
+        "@maven//:org_apache_commons_commons_compress",
+        "@maven//:org_apache_hadoop_hadoop_common",
         "@maven//:org_apache_hive_hive_exec_2_2_0",
         "@maven//:org_slf4j_slf4j_api",
-    ],
-)
-
-java_binary(
-    name = "HiveMigrationAssessmentQueryLogsHooks",
-    runtime_deps = [
-        ":hooks",
     ],
 )

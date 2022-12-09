@@ -19,6 +19,7 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.avro.AvroSchemaLoader;
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.ExecutionMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
