@@ -6,7 +6,7 @@ import static com.google.common.truth.Truth8.assertThat;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -50,7 +50,7 @@ public class EventRecordConstructorTest {
     conf = new HiveConf();
     queryState = new QueryState(conf);
 
-    Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(QUERY_END_TIME), ZoneId.of("UTC"));
+    Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(QUERY_END_TIME), ZoneOffset.UTC);
     eventRecordConstructor = new EventRecordConstructor(fixedClock);
   }
 
