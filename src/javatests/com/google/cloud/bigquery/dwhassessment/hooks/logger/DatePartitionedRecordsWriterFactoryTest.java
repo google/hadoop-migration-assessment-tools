@@ -4,21 +4,11 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookCo
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.avro.file.DataFileStream;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.avro.io.DatumReader;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -32,7 +22,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 @RunWith(JUnit4.class)
-public class DatePartitionedLoggerTest {
+public class DatePartitionedRecordsWriterFactoryTest {
   @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
@@ -54,7 +44,7 @@ public class DatePartitionedLoggerTest {
     boolean existedBefore = fs.exists(targetDirectoryPath);
 
     // Act
-    new DatePartitionedLogger(targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock);
+    new DatePartitionedRecordsWriterFactory(targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock);
 
     // Assert
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
@@ -68,15 +58,15 @@ public class DatePartitionedLoggerTest {
     Path targetDirectoryPath = new Path(tmpFolder, targetDate.toString());
     FileSystem fs = targetDirectoryPath.getFileSystem(conf);
     boolean existedBefore = fs.exists(targetDirectoryPath);
-    DatePartitionedLogger datePartitionedLogger =
-        new DatePartitionedLogger(
+    DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
+        new DatePartitionedRecordsWriterFactory(
             new Path(tmpFolder),
             conf,
             QUERY_EVENT_SCHEMA,
             Clock.fixed(fixedInstant, ZoneOffset.UTC));
 
     // Act
-    RecordsWriter writer = datePartitionedLogger.createWriter("test_filename.avro");
+    RecordsWriter writer = datePartitionedRecordsWriterFactory.createWriter("test_filename.avro");
 
     // Assert
     assertThat(writer.getPath())
@@ -92,14 +82,14 @@ public class DatePartitionedLoggerTest {
   public void getDateFromDir_success() {
     LocalDate expected = LocalDate.of(2022, 12, 8);
 
-    assertThat(DatePartitionedLogger.getDateFromDir("2022-12-08")).isEqualTo(expected);
+    assertThat(DatePartitionedRecordsWriterFactory.getDateFromDir("2022-12-08")).isEqualTo(expected);
   }
 
   @Test
   public void getDateFromDir_invalidDirectoryName_fail() {
     IllegalArgumentException e =
         assertThrows(
-            IllegalArgumentException.class, () -> DatePartitionedLogger.getDateFromDir("test"));
+            IllegalArgumentException.class, () -> DatePartitionedRecordsWriterFactory.getDateFromDir("test"));
 
     assertThat(e).hasMessageThat().isEqualTo("Invalid directory: test");
   }

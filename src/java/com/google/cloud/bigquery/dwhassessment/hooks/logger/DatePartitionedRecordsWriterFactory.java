@@ -29,17 +29,21 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Writes query events to files, partitioned by dates. */
-public class DatePartitionedLogger {
-  private static final Logger LOG = LoggerFactory.getLogger(DatePartitionedLogger.class);
+/**
+ * Factory for {@link RecordsWriter} instances. Manages them to write to files, partitioned by
+ * dates.
+ */
+public class DatePartitionedRecordsWriterFactory {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(DatePartitionedRecordsWriterFactory.class);
   private static final FsPermission DIR_PERMISSION = FsPermission.createImmutable((short) 1023);
   private final Path basePath;
   private final Configuration conf;
   private final Schema schema;
   private final Clock clock;
 
-  public DatePartitionedLogger(Path baseDir, Configuration conf, Schema schema, Clock clock)
-      throws IOException {
+  public DatePartitionedRecordsWriterFactory(
+      Path baseDir, Configuration conf, Schema schema, Clock clock) throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
     this.schema = schema;

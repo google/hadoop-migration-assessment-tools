@@ -52,9 +52,9 @@ java_test(
 )
 
 java_test(
-    name = "DatePartitionedLoggerTest",
+    name = "DatePartitionedRecordsWriterFactoryTest",
     size = "small",
-    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.DatePartitionedLoggerTest",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.DatePartitionedRecordsWriterFactoryTest",
     runtime_deps = [
         ":tests",
     ],

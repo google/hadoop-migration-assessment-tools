@@ -41,7 +41,7 @@ public class EventLogger {
   private static final int QUERY_EVENTS_QUEUE_DEFAULT_SIZE = 64;
   private static final Duration DEFAULT_ROLLOVER_TIME_MILLISECONDS = Duration.ofSeconds(600);
 
-  private final DatePartitionedLogger logger;
+  private final DatePartitionedRecordsWriterFactory logger;
   private final EventRecordConstructor eventRecordConstructor;
   private final ScheduledThreadPoolExecutor logWriter;
   private final int queueCapacity;
@@ -141,13 +141,13 @@ public class EventLogger {
     }
   }
 
-  private DatePartitionedLogger createLogger(String baseDir, HiveConf conf, Clock clock) {
+  private DatePartitionedRecordsWriterFactory createLogger(String baseDir, HiveConf conf, Clock clock) {
     if (baseDir == null) {
       return null;
     }
 
     try {
-      return new DatePartitionedLogger(new Path(baseDir), conf, QUERY_EVENT_SCHEMA, clock);
+      return new DatePartitionedRecordsWriterFactory(new Path(baseDir), conf, QUERY_EVENT_SCHEMA, clock);
     } catch (IOException e) {
       LOG.error("Unable to initialize logger, logging disabled.", e);
     }
@@ -178,7 +178,7 @@ public class EventLogger {
       // increment log file count, if creating a new writer.
       ++logFileCount;
       writer = logger.createWriter(constructFileName());
-      writerDate = DatePartitionedLogger.getDateFromDir(writer.getPath().getParent().getName());
+      writerDate = DatePartitionedRecordsWriterFactory.getDateFromDir(writer.getPath().getParent().getName());
     }
   }
 
