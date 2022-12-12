@@ -200,7 +200,7 @@ public class EventLoggerTest {
     DatumReader<GenericRecord> reader = new GenericDatumReader<>(QUERY_EVENT_SCHEMA);
 
     try (DataFileStream<GenericRecord> dataFileReader = new DataFileStream<>(inputStream, reader)) {
-      ArrayList<GenericRecord> records = new ArrayList<>();
+      List<GenericRecord> records = new ArrayList<>();
       dataFileReader.forEach(records::add);
       return records;
     }

@@ -4,9 +4,8 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_QUEUE_CAPACITY;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_CHECK_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
-import static java.time.temporal.ChronoUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
@@ -38,9 +37,9 @@ public class EventLogger {
   private static final Logger LOG = LoggerFactory.getLogger(EventLogger.class);
 
   private static final int MAX_RETRIES = 2;
-  private static final int SHUTDOWN_WAIT_TIME = 5;
-  private static final int QUERY_EVENTS_QEUUE_DEFAULT_SIZE = 64;
-  private static final Duration DEFAULT_ROLLOVER_TIME_MILLISECONDS = Duration.of(600, SECONDS);
+  private static final Duration SHUTDOWN_WAIT_TIME = Duration.ofSeconds(5);
+  private static final int QUERY_EVENTS_QUEUE_DEFAULT_SIZE = 64;
+  private static final Duration DEFAULT_ROLLOVER_TIME_MILLISECONDS = Duration.ofSeconds(600);
 
   private final DatePartitionedLogger logger;
   private final EventRecordConstructor eventRecordConstructor;
@@ -69,10 +68,10 @@ public class EventLogger {
 
   protected EventLogger(HiveConf conf, Clock clock) {
     eventRecordConstructor = new EventRecordConstructor(clock);
-    this.loggerId = UUID.randomUUID();
-    this.queueCapacity =
+    loggerId = UUID.randomUUID();
+    queueCapacity =
         conf.getInt(
-            HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName(), QUERY_EVENTS_QEUUE_DEFAULT_SIZE);
+            HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName(), QUERY_EVENTS_QUEUE_DEFAULT_SIZE);
     String baseDir = conf.get(HIVE_QUERY_EVENTS_BASE_PATH.getConfName());
 
     if (StringUtils.isBlank(baseDir)) {
@@ -82,7 +81,7 @@ public class EventLogger {
           HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName());
     }
 
-    this.logger = createLogger(baseDir, conf, clock);
+    logger = createLogger(baseDir, conf, clock);
     if (logger == null) {
       logWriter = null;
       return;
@@ -95,14 +94,17 @@ public class EventLogger {
             .build();
     logWriter = new ScheduledThreadPoolExecutor(1, threadFactory);
 
-    long rolloverInterval =
+    long rolloverIntervalMilliseconds =
         conf.getTimeDuration(
             HIVE_QUERY_EVENTS_ROLLOVER_CHECK_INTERVAL.getConfName(),
             DEFAULT_ROLLOVER_TIME_MILLISECONDS.toMillis(),
             TimeUnit.MILLISECONDS);
 
     logWriter.scheduleWithFixedDelay(
-        this::handleTick, rolloverInterval, rolloverInterval, TimeUnit.MILLISECONDS);
+        this::handleTick,
+        rolloverIntervalMilliseconds,
+        rolloverIntervalMilliseconds,
+        TimeUnit.MILLISECONDS);
   }
 
   public void handle(HookContext hookContext) {
@@ -154,14 +156,14 @@ public class EventLogger {
   }
 
   private String constructFileName() {
-    return "dwhassessment_" + loggerId + "-" + logFileCount + ".avro";
+    return "dwhassessment_" + loggerId + "_" + logFileCount + ".avro";
   }
 
   private void handleTick() {
     try {
       maybeRolloverWriterForDay();
     } catch (IOException e) {
-      LOG.error("Got IOException while trying to rollover: ", e);
+      LOG.error("Got IOException while trying to rollover", e);
     }
   }
 
@@ -200,17 +202,15 @@ public class EventLogger {
   private void reportRetryState(GenericRecord event, int retryCount, IOException writeException) {
     if (retryCount < MAX_RETRIES) {
       LOG.warn(
-          "Error writing proto message for query {}, eventType: {}, retryCount: {},"
-              + " error: {} ",
+          "Error writing proto message for query {}, eventType: {}, retryCount: {}",
           event.get("QueryId"),
           event.get("EventType"),
           retryCount,
-          writeException.getMessage(),
           writeException);
       LOG.trace("Exception", writeException);
     } else {
       LOG.error(
-          "Error writing proto message for query {}, eventType: {}: ",
+          "Error writing proto message for query {}, eventType: {}",
           event.get("QueryId"),
           event.get("EventType"),
           writeException);
@@ -220,19 +220,20 @@ public class EventLogger {
   private void waitForRetry(int retryCount) {
     try {
       // 0 seconds, for first retry assuming fs object was closed and open will fix it.
-      Thread.sleep(1000L * retryCount * retryCount);
-    } catch (InterruptedException e1) {
-      LOG.warn("Got interrupted in retry sleep.", e1);
+      SECONDS.sleep((long) retryCount * retryCount);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("Got interrupted in retry sleep.", e);
     }
   }
-
 
   public void shutdown() {
     if (logWriter != null) {
       logWriter.shutdown();
       try {
-        logWriter.awaitTermination(SHUTDOWN_WAIT_TIME, TimeUnit.SECONDS);
+        logWriter.awaitTermination(SHUTDOWN_WAIT_TIME.getSeconds(), SECONDS);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         LOG.warn("Got interrupted exception while waiting for events to be flushed", e);
       }
     }
