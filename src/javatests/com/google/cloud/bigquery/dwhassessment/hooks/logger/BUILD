@@ -41,3 +41,30 @@ java_test(
         ":tests",
     ],
 )
+
+java_test(
+    name = "RecordsWriterTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.RecordsWriterTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "DatePartitionedRecordsWriterFactoryTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.DatePartitionedRecordsWriterFactoryTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "EventLoggerTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLoggerTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)

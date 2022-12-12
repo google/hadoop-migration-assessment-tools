@@ -20,6 +20,7 @@ java_library(
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
+        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
         "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:junit_junit",
         "@maven_tests//:org_apache_hadoop_hadoop_common",
