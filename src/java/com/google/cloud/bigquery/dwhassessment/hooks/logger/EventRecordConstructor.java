@@ -134,7 +134,7 @@ public class EventRecordConstructor {
     List<String> tableNames = new ArrayList<>();
     for (Entity entity : entities) {
       if (entity.getType() == TABLE || entity.getType() == PARTITION) {
-        tableNames.add(entity.getTable().getDbName() + "." + entity.getTable().getTableName());
+        tableNames.add(entity.getTable().getCompleteName());
       }
     }
     return tableNames;
@@ -185,7 +185,7 @@ public class EventRecordConstructor {
       try {
         hiveInstanceAddress = InetAddress.getLocalHost().getHostAddress();
       } catch (UnknownHostException e) {
-        LOG.error("Error trying to get localhost address: ", e);
+        LOG.error("Error trying to get localhost address", e);
       }
     }
     return hiveInstanceAddress;
@@ -206,7 +206,7 @@ public class EventRecordConstructor {
         try {
           return LlapRegistryService.getClient(conf).getApplicationId().toString();
         } catch (IOException e) {
-          LOG.error("Error trying to get llap instance: ", e);
+          LOG.error("Error trying to get llap instance. Hosts: {}", hosts, e);
         }
       } else {
         LOG.info("Cannot determine LLAP instance on client - service hosts are not set");
