@@ -18,7 +18,6 @@ package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import org.apache.avro.Schema;

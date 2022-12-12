@@ -59,3 +59,12 @@ java_test(
         ":tests",
     ],
 )
+
+java_test(
+    name = "EventLoggerTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLoggerTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
