@@ -20,9 +20,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig;
-import com.google.cloud.bigquery.dwhassessment.hooks.utils.SystemClock;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.file.DataFileStream;
@@ -88,7 +88,7 @@ public class MigrationAssessmentLoggingHookTest {
 
     // Act
     hook.run(context);
-    EventLogger.getInstance(conf, new SystemClock()).shutdown();
+    EventLogger.getInstance(conf, Clock.systemUTC()).shutdown();
 
     // Assert
     List<GenericRecord> records = readOutputRecords(conf, tmpFolder);

@@ -44,14 +44,14 @@ public class RecordsWriter implements Closeable {
   }
 
   public Path getPath() {
-    return this.filePath;
+    return filePath;
   }
 
   public void writeMessage(GenericRecord message) throws IOException {
     dataFileWriter.append(message);
   }
 
-  public void hflush() throws IOException {
+  public void flush() throws IOException {
     dataFileWriter.flush();
   }
 

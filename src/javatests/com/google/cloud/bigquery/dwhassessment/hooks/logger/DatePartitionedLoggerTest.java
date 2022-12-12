@@ -65,7 +65,7 @@ public class DatePartitionedLoggerTest {
   public void getWriter_createsRecordWriterForCurrentDateDirectory() throws Exception {
     Instant fixedInstant = Instant.ofEpochMilli(1293285023000L);
     LocalDate targetDate = fixedInstant.atOffset(ZoneOffset.UTC).toLocalDate();
-    Path targetDirectoryPath = new Path(tmpFolder, "date=" + targetDate.toString());
+    Path targetDirectoryPath = new Path(tmpFolder, targetDate.toString());
     FileSystem fs = targetDirectoryPath.getFileSystem(conf);
     boolean existedBefore = fs.exists(targetDirectoryPath);
     DatePartitionedLogger datePartitionedLogger =
@@ -76,7 +76,7 @@ public class DatePartitionedLoggerTest {
             Clock.fixed(fixedInstant, ZoneOffset.UTC));
 
     // Act
-    RecordsWriter writer = datePartitionedLogger.getWriter("test_filename.avro");
+    RecordsWriter writer = datePartitionedLogger.createWriter("test_filename.avro");
 
     // Assert
     assertThat(writer.getPath())
@@ -92,7 +92,7 @@ public class DatePartitionedLoggerTest {
   public void getDateFromDir_success() {
     LocalDate expected = LocalDate.of(2022, 12, 8);
 
-    assertThat(DatePartitionedLogger.getDateFromDir("date=2022-12-08")).isEqualTo(expected);
+    assertThat(DatePartitionedLogger.getDateFromDir("2022-12-08")).isEqualTo(expected);
   }
 
   @Test
@@ -102,31 +102,5 @@ public class DatePartitionedLoggerTest {
             IllegalArgumentException.class, () -> DatePartitionedLogger.getDateFromDir("test"));
 
     assertThat(e).hasMessageThat().isEqualTo("Invalid directory: test");
-  }
-
-  public static List<GenericRecord> readOutputRecords(HiveConf conf, String tmpFolder)
-      throws IOException {
-    Path path = new Path(tmpFolder);
-    FileSystem fs = path.getFileSystem(conf);
-
-    ImmutableList<FileStatus> directories = ImmutableList.copyOf(fs.listStatus(path));
-    assertThat(directories).hasSize(1);
-    ImmutableList<FileStatus> files =
-        ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
-    assertThat(files).hasSize(1);
-
-    FSDataInputStream inputStream = fs.open(files.get(0).getPath());
-
-    DatumReader<GenericRecord> reader = new GenericDatumReader<>(QUERY_EVENT_SCHEMA);
-
-    try (DataFileStream<GenericRecord> dataFileReader = new DataFileStream<>(inputStream, reader)) {
-      ArrayList<GenericRecord> records = new ArrayList<>();
-      dataFileReader.forEach(records::add);
-      return records;
-    }
-  }
-
-  private GenericRecord createMessage(String id) {
-    return new GenericRecordBuilder(QUERY_EVENT_SCHEMA).set("QueryId", id).build();
   }
 }

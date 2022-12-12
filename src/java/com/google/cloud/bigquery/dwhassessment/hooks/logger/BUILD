@@ -20,7 +20,6 @@ java_library(
     srcs = glob(["*.java"]),
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/utils",
         "@maven//:com_google_guava_guava",
         "@maven//:org_apache_avro_avro",
         "@maven//:org_apache_commons_commons_compress",

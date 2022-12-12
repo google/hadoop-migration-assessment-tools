@@ -16,7 +16,7 @@
 package com.google.cloud.bigquery.dwhassessment.hooks;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
-import com.google.cloud.bigquery.dwhassessment.hooks.utils.SystemClock;
+import java.time.Clock;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
@@ -30,7 +30,7 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
 
   public void run(HookContext hookContext) throws Exception {
     try {
-      EventLogger logger = EventLogger.getInstance(hookContext.getConf(), new SystemClock());
+      EventLogger logger = EventLogger.getInstance(hookContext.getConf(), Clock.systemUTC());
       logger.handle(hookContext);
     } catch (Exception e) {
       LOG.error("Got exception while processing event", e);

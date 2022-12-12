@@ -184,7 +184,7 @@ public class EventLoggerTest {
     return new QueryPlan(queryText, sem, 1234L, queryId, HiveOperation.QUERY, null);
   }
 
-  public static List<GenericRecord> readOutputRecords(HiveConf conf, String tmpFolder)
+  private static List<GenericRecord> readOutputRecords(HiveConf conf, String tmpFolder)
       throws IOException {
     Path path = new Path(tmpFolder);
     FileSystem fs = path.getFileSystem(conf);

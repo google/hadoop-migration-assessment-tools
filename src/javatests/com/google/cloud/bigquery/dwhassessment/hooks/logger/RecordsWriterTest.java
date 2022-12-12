@@ -77,7 +77,7 @@ public class RecordsWriterTest {
     assertThat(recordsWriter.getPath()).isEqualTo(outputFilePath);
   }
 
-  public static List<GenericRecord> readOutputRecords(HiveConf conf, Path outputFilePath)
+  private static List<GenericRecord> readOutputRecords(HiveConf conf, Path outputFilePath)
       throws IOException {
     FileSystem fs = outputFilePath.getFileSystem(conf);
     FSDataInputStream inputStream = fs.open(outputFilePath);
@@ -85,7 +85,7 @@ public class RecordsWriterTest {
     DatumReader<GenericRecord> reader = new GenericDatumReader<>(QUERY_EVENT_SCHEMA);
 
     try (DataFileStream<GenericRecord> dataFileReader = new DataFileStream<>(inputStream, reader)) {
-      ArrayList<GenericRecord> records = new ArrayList<>();
+      List<GenericRecord> records = new ArrayList<>();
       dataFileReader.forEach(records::add);
       return records;
     }

@@ -20,6 +20,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -41,26 +42,26 @@ public class DatePartitionedLogger {
       throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
-    this.basePath = baseDir.getFileSystem(conf).resolvePath(baseDir);
     this.schema = schema;
     this.clock = clock;
+    basePath = baseDir.getFileSystem(conf).resolvePath(baseDir);
   }
 
   public static LocalDate getDateFromDir(String dirName) {
-    if (!dirName.startsWith("date=")) {
-      throw new IllegalArgumentException("Invalid directory: " + dirName);
-    } else {
-      return LocalDate.parse(dirName.substring(5), DateTimeFormatter.ISO_LOCAL_DATE);
+    try {
+      return LocalDate.parse(dirName, DateTimeFormatter.ISO_LOCAL_DATE);
+    } catch (DateTimeParseException e) {
+      throw new IllegalArgumentException("Invalid directory: " + dirName, e);
     }
   }
 
-  public RecordsWriter getWriter(String fileName) throws IOException {
-    Path filePath = this.getPathForDate(this.getNow(), fileName);
-    return new RecordsWriter(this.conf, filePath, schema);
+  public RecordsWriter createWriter(String fileName) throws IOException {
+    Path filePath = getPathForDate(getNow(), fileName);
+    return new RecordsWriter(conf, filePath, schema);
   }
 
   private void createDirIfNotExists(Path path) throws IOException {
-    FileSystem fileSystem = path.getFileSystem(this.conf);
+    FileSystem fileSystem = path.getFileSystem(conf);
 
     try {
       if (!fileSystem.exists(path)) {
@@ -68,18 +69,18 @@ public class DatePartitionedLogger {
         fileSystem.setPermission(path, DIR_PERMISSION);
       }
     } catch (IOException e) {
-      LOG.warn("Error while trying to set permission: ", e);
+      LOG.warn("Error while trying to set permission", e);
     }
   }
 
   private Path getPathForDate(LocalDate date, String fileName) throws IOException {
-    Path path = new Path(this.basePath, this.getDirForDate(date));
-    this.createDirIfNotExists(path);
+    Path path = new Path(basePath, getDirForDate(date));
+    createDirIfNotExists(path);
     return new Path(path, fileName);
   }
 
   private String getDirForDate(LocalDate date) {
-    return "date=" + DateTimeFormatter.ISO_LOCAL_DATE.format(date);
+    return DateTimeFormatter.ISO_LOCAL_DATE.format(date);
   }
 
   public LocalDate getNow() {

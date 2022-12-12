@@ -177,7 +177,7 @@ public class EventLogger {
       }
       // increment log file count, if creating a new writer.
       ++logFileCount;
-      writer = logger.getWriter(constructFileName());
+      writer = logger.createWriter(constructFileName());
       writerDate = DatePartitionedLogger.getDateFromDir(writer.getPath().getParent().getName());
     }
   }
@@ -187,7 +187,7 @@ public class EventLogger {
       try {
         maybeRolloverWriterForDay();
         writer.writeMessage(event);
-        writer.hflush();
+        writer.flush();
         return;
       } catch (IOException e) {
         // Something wrong with writer – close and reopen.

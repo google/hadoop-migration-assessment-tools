@@ -21,7 +21,6 @@ java_library(
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/utils",
         "@maven//:org_apache_hive_hive_exec_2_2_0",
         "@maven//:org_slf4j_slf4j_api",
     ],
