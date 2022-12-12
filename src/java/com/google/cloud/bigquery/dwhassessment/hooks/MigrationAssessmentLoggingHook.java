@@ -33,7 +33,7 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
       EventLogger logger = EventLogger.getInstance(hookContext.getConf(), new SystemClock());
       logger.handle(hookContext);
     } catch (Exception e) {
-      LOG.error("Got exceptoin while processing event: ", e);
+      LOG.error("Got exception while processing event", e);
     }
   }
 }
