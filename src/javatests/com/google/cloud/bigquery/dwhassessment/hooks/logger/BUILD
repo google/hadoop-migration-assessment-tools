@@ -18,9 +18,9 @@ java_library(
     testonly = 1,
     srcs = glob(["*.java"]),
     deps = [
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
+        "@maven_tests//:com_google_truth_extensions_truth_java8_extension",
         "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:junit_junit",
         "@maven_tests//:org_apache_hadoop_hadoop_common",
@@ -34,9 +34,36 @@ java_library(
 )
 
 java_test(
-    name = "MigrationAssessmentLoggingHookTest",
+    name = "EventRecordConstructorTest",
     size = "small",
-    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.MigrationAssessmentLoggingHookTest",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.EventRecordConstructorTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "RecordsWriterTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.RecordsWriterTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "DatePartitionedRecordsWriterFactoryTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.DatePartitionedRecordsWriterFactoryTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "EventLoggerTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLoggerTest",
     runtime_deps = [
         ":tests",
     ],

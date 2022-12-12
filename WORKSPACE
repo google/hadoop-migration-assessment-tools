@@ -24,6 +24,18 @@ maven_install(
             neverlink = True,
         ),
         maven.artifact(
+            "org.apache.commons",
+            "commons-compress",
+            "1.10",
+            neverlink = True,
+        ),
+        maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-common",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
             "org.apache.avro",
             "avro",
             "1.10.2",
@@ -70,6 +82,7 @@ maven_install(
         "org.apache.hadoop:hadoop-mapreduce-client-core:2.9.0",
         "org.apache.hive:hive-exec:2.2.0",
         "com.google.truth:truth:1.1.3",
+        "com.google.truth.extensions:truth-java8-extension:1.1.3",
         "org.apache.curator:apache-curator:2.7.1",
         "junit:junit:4.13.2",
         "org.mockito:mockito-core:3.11.1",

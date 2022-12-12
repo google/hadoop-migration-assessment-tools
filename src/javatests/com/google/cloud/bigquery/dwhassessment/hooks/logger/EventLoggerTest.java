@@ -1,28 +1,13 @@
-/*
- * Copyright 2022 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package com.google.cloud.bigquery.dwhassessment.hooks;
+package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
-import com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.file.DataFileStream;
@@ -55,40 +40,44 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 @RunWith(JUnit4.class)
-public class MigrationAssessmentLoggingHookTest {
+public class EventLoggerTest {
 
   @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @Mock Hive hiveMock;
+
+  private static final long QUERY_COMPLETED_TIME = 100005L;
 
   private QueryState queryState;
   private HiveConf conf;
   private String tmpFolder;
 
+  private EventLogger logger;
 
   @Before
   public void setup() throws IOException {
     conf = new HiveConf();
     tmpFolder = folder.newFolder().getAbsolutePath();
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
+    logger =
+        new EventLogger(
+            conf, Clock.fixed(Instant.ofEpochMilli(QUERY_COMPLETED_TIME), ZoneOffset.UTC));
     queryState = new QueryState(conf);
   }
 
   @Test
-  public void run_success() throws Exception {
+  public void preExecHook_success() throws Exception {
     String queryText = "SELECT * FROM employees";
     String queryId = "hive_query_id_999";
     QueryPlan queryPlan = createQueryPlan(queryText, queryId);
     HookContext context = createContext(queryPlan);
     context.setHookType(HookType.PRE_EXEC_HOOK);
-    MigrationAssessmentLoggingHook hook = new MigrationAssessmentLoggingHook();
 
     // Act
-    hook.run(context);
-    EventLogger.getInstance(conf, Clock.systemUTC()).shutdown();
+    logger.handle(context);
+    logger.shutdown();
 
     // Assert
     List<GenericRecord> records = readOutputRecords(conf, tmpFolder);
@@ -115,6 +104,64 @@ public class MigrationAssessmentLoggingHookTest {
                 .build());
   }
 
+  @Test
+  public void postExecHook_success() throws Exception {
+    String queryText = "SELECT * FROM employees";
+    String queryId = "hive_query_id_999";
+    QueryPlan queryPlan = createQueryPlan(queryText, queryId);
+    HookContext context = createContext(queryPlan);
+    context.setHookType(HookType.POST_EXEC_HOOK);
+
+    // Act
+    logger.handle(context);
+    logger.shutdown();
+
+    // Assert
+    List<GenericRecord> records = readOutputRecords(conf, tmpFolder);
+    assertThat(records)
+        .containsExactly(
+            new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
+                .set("QueryId", queryId)
+                .set("EventType", "QUERY_COMPLETED")
+                .set("Timestamp", QUERY_COMPLETED_TIME)
+                .set("RequestUser", "test_user")
+                .set("User", System.getProperty("user.name"))
+                .set("OperationId", "test_op_id")
+                .set("Status", "SUCCESS")
+                .set("PerfObject", "{}")
+                .set("HookVersion", "1.0")
+                .build());
+  }
+
+  @Test
+  public void onFailureHook_success() throws Exception {
+    String queryText = "SELECT * FROM employees";
+    String queryId = "hive_query_id_999";
+    QueryPlan queryPlan = createQueryPlan(queryText, queryId);
+    HookContext context = createContext(queryPlan);
+    context.setHookType(HookType.ON_FAILURE_HOOK);
+
+    // Act
+    logger.handle(context);
+    logger.shutdown();
+
+    // Assert
+    List<GenericRecord> records = readOutputRecords(conf, tmpFolder);
+    assertThat(records)
+        .containsExactly(
+            new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
+                .set("QueryId", queryId)
+                .set("EventType", "QUERY_COMPLETED")
+                .set("Timestamp", QUERY_COMPLETED_TIME)
+                .set("RequestUser", "test_user")
+                .set("User", System.getProperty("user.name"))
+                .set("OperationId", "test_op_id")
+                .set("Status", "FAIL")
+                .set("PerfObject", "{}")
+                .set("HookVersion", "1.0")
+                .build());
+  }
+
   private HookContext createContext(QueryPlan queryPlan) throws Exception {
     PerfLogger perfLogger = PerfLogger.getPerfLogger(conf, true);
     return new HookContext(
@@ -137,14 +184,15 @@ public class MigrationAssessmentLoggingHookTest {
     return new QueryPlan(queryText, sem, 1234L, queryId, HiveOperation.QUERY, null);
   }
 
-  public static List<GenericRecord> readOutputRecords(HiveConf conf, String tmpFolder)
+  private static List<GenericRecord> readOutputRecords(HiveConf conf, String tmpFolder)
       throws IOException {
     Path path = new Path(tmpFolder);
     FileSystem fs = path.getFileSystem(conf);
 
     ImmutableList<FileStatus> directories = ImmutableList.copyOf(fs.listStatus(path));
     assertThat(directories).hasSize(1);
-    ImmutableList<FileStatus> files =  ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
+    ImmutableList<FileStatus> files =
+        ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
     assertThat(files).hasSize(1);
 
     FSDataInputStream inputStream = fs.open(files.get(0).getPath());
@@ -152,7 +200,7 @@ public class MigrationAssessmentLoggingHookTest {
     DatumReader<GenericRecord> reader = new GenericDatumReader<>(QUERY_EVENT_SCHEMA);
 
     try (DataFileStream<GenericRecord> dataFileReader = new DataFileStream<>(inputStream, reader)) {
-      ArrayList<GenericRecord> records = new ArrayList<>();
+      List<GenericRecord> records = new ArrayList<>();
       dataFileReader.forEach(records::add);
       return records;
     }

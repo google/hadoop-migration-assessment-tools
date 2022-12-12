@@ -35,4 +35,6 @@ public final class AvroSchemaLoader {
       throw new IllegalStateException(String.format("Error reading schema '%s'.", name), e);
     }
   }
+
+  private AvroSchemaLoader() {}
 }
