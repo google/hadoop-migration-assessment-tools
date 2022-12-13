@@ -39,7 +39,7 @@ public class EventLogger {
   private static final int MAX_RETRIES = 2;
   private static final Duration SHUTDOWN_WAIT_TIME = Duration.ofSeconds(5);
   private static final int QUERY_EVENTS_QUEUE_DEFAULT_SIZE = 64;
-  private static final Duration DEFAULT_ROLLOVER_TIME_MILLISECONDS = Duration.ofSeconds(600);
+  private static final Duration DEFAULT_ROLLOVER_CHECK_INTERVAL_DURATION = Duration.ofMinutes(10);
 
   private final DatePartitionedRecordsWriterFactory logger;
   private final EventRecordConstructor eventRecordConstructor;
@@ -97,7 +97,7 @@ public class EventLogger {
     long rolloverIntervalMilliseconds =
         conf.getTimeDuration(
             HIVE_QUERY_EVENTS_ROLLOVER_CHECK_INTERVAL.getConfName(),
-            DEFAULT_ROLLOVER_TIME_MILLISECONDS.toMillis(),
+            DEFAULT_ROLLOVER_CHECK_INTERVAL_DURATION.toMillis(),
             TimeUnit.MILLISECONDS);
 
     logWriter.scheduleWithFixedDelay(
