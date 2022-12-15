@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,13 +45,17 @@ public class DatePartitionedRecordsWriterFactory {
   private final Schema schema;
   private final Clock clock;
   private Instant rolloverTime;
+  private final UUID loggerId;
+  private int logFileCount = 0;
 
   public DatePartitionedRecordsWriterFactory(
-      Path baseDir, Configuration conf, Schema schema, Clock clock) throws IOException {
+      Path baseDir, Configuration conf, Schema schema, Clock clock, UUID loggerId)
+      throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
     this.schema = schema;
     this.clock = clock;
+    this.loggerId = loggerId;
     basePath = baseDir.getFileSystem(conf).resolvePath(baseDir);
     rolloverTime = calculateNextRolloverTime();
   }
@@ -63,7 +68,13 @@ public class DatePartitionedRecordsWriterFactory {
     }
   }
 
-  public RecordsWriter createWriter(String fileName) throws IOException {
+  /**
+   * Creates new writer for the current date. Each new invocation increments the {@code
+   * logFileCount}.
+   */
+  public RecordsWriter createWriter() throws IOException {
+    ++logFileCount;
+    String fileName = constructFileName();
     Path filePath = getPathForDate(getCurrentDate(), fileName);
     return new RecordsWriter(conf, filePath, schema);
   }
@@ -81,6 +92,8 @@ public class DatePartitionedRecordsWriterFactory {
     }
 
     rolloverTime = calculateNextRolloverTime();
+    // Day changes over case, reset the logFileCount.
+    logFileCount = 0;
     return true;
   }
 
@@ -113,5 +126,9 @@ public class DatePartitionedRecordsWriterFactory {
 
   private LocalDate getCurrentDate() {
     return clock.instant().atOffset(ZoneOffset.UTC).toLocalDate();
+  }
+
+  private String constructFileName() {
+    return "dwhassessment_" + loggerId + "_" + logFileCount + ".avro";
   }
 }

@@ -46,7 +46,6 @@ public class EventLogger {
   private final int queueCapacity;
   private final UUID loggerId;
 
-  private int logFileCount = 0;
   private RecordsWriter writer;
 
   // Singleton using DCL.
@@ -147,16 +146,12 @@ public class EventLogger {
 
     try {
       return new DatePartitionedRecordsWriterFactory(
-          new Path(baseDir), conf, QUERY_EVENT_SCHEMA, clock);
+          new Path(baseDir), conf, QUERY_EVENT_SCHEMA, clock, loggerId);
     } catch (IOException e) {
       LOG.error("Unable to initialize logger, logging disabled.", e);
     }
 
     return null;
-  }
-
-  private String constructFileName() {
-    return "dwhassessment_" + loggerId + "_" + logFileCount + ".avro";
   }
 
   private void handleTick() {
@@ -170,14 +165,11 @@ public class EventLogger {
   private void maybeRolloverWriterForDay() throws IOException {
     if (writer == null || recordsWriterFactory.shouldRollover()) {
       if (writer != null) {
-        // Day changes over case, reset the logFileCount.
-        logFileCount = 0;
         IOUtils.closeQuietly(writer);
         writer = null;
       }
-      // increment log file count, if creating a new writer.
-      ++logFileCount;
-      writer = recordsWriterFactory.createWriter(constructFileName());
+
+      writer = recordsWriterFactory.createWriter();
       recordsWriterFactory.maybeUpdateRolloverTime();
     }
   }

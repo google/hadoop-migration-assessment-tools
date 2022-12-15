@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.UUID;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -28,6 +29,8 @@ public class DatePartitionedRecordsWriterFactoryTest {
   @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
+
+  private static final String TEST_UUID = "a665f132-0606-4602-855d-04cd8a747f55";
 
   private HiveConf conf;
   private String tmpFolder;
@@ -47,7 +50,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
     // Act
     new DatePartitionedRecordsWriterFactory(
-        targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock);
+        targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock, UUID.randomUUID());
 
     // Assert
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
@@ -65,16 +68,58 @@ public class DatePartitionedRecordsWriterFactoryTest {
         createRecordsWriterFactory(Clock.fixed(fixedInstant, ZoneOffset.UTC));
 
     // Act
-    RecordsWriter writer = datePartitionedRecordsWriterFactory.createWriter("test_filename.avro");
+    RecordsWriter writer = datePartitionedRecordsWriterFactory.createWriter();
 
     // Assert
     assertThat(writer.getPath())
         .isEqualTo(
             new Path(
                 targetDirectoryPath.getFileSystem(conf).resolvePath(targetDirectoryPath),
-                "test_filename.avro"));
+                "dwhassessment_" + TEST_UUID + "_1.avro"));
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
     assertThat(existedBefore).isFalse();
+  }
+
+  @Test
+  public void getWriter_increasesLogCountWithEveryNewWriter() throws Exception {
+    Instant fixedInstant = Instant.ofEpochMilli(1293285023000L);
+    DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
+        createRecordsWriterFactory(Clock.fixed(fixedInstant, ZoneOffset.UTC));
+
+    // Act
+    RecordsWriter writer1 = datePartitionedRecordsWriterFactory.createWriter();
+    RecordsWriter writer2 = datePartitionedRecordsWriterFactory.createWriter();
+    RecordsWriter writer3 = datePartitionedRecordsWriterFactory.createWriter();
+
+    // Assert
+    assertThat(writer1.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_1.avro");
+    assertThat(writer2.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_2.avro");
+    assertThat(writer3.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_3.avro");
+  }
+
+  @Test
+  public void getWriter_resetsLogCountWithRollover() throws Exception {
+    Instant firstInstant = parseDateTime("2022-12-25T12:23:54.00Z");
+    Instant currentInstant = parseDateTime("2022-12-26T15:00:00.00Z");
+    Clock clockMock = mock(Clock.class);
+    when(clockMock.instant())
+        .thenReturn(firstInstant, firstInstant, firstInstant) // Constructor and two RecordsWriters
+        .thenReturn(currentInstant, currentInstant); // First date check and consecutive calls
+    DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
+        createRecordsWriterFactory(clockMock);
+
+    // Act
+    RecordsWriter writer1 = datePartitionedRecordsWriterFactory.createWriter();
+    RecordsWriter writer2 = datePartitionedRecordsWriterFactory.createWriter();
+    datePartitionedRecordsWriterFactory.maybeUpdateRolloverTime();
+    RecordsWriter writer3 = datePartitionedRecordsWriterFactory.createWriter();
+
+    // Assert
+    assertThat(writer1.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_1.avro");
+    assertThat(writer2.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_2.avro");
+    assertThat(writer2.getPath().getParent().getName()).isEqualTo("2022-12-25");
+    assertThat(writer3.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_1.avro");
+    assertThat(writer3.getPath().getParent().getName()).isEqualTo("2022-12-26");
   }
 
   @Test
@@ -125,11 +170,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
     DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
         createRecordsWriterFactory(clockMock);
     String currentDirectory =
-        datePartitionedRecordsWriterFactory
-            .createWriter("test_filename.avro")
-            .getPath()
-            .getParent()
-            .getName();
+        datePartitionedRecordsWriterFactory.createWriter().getPath().getParent().getName();
 
     // Act
     boolean isUpdated = datePartitionedRecordsWriterFactory.maybeUpdateRolloverTime();
@@ -151,11 +192,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
     DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
         createRecordsWriterFactory(clockMock);
     String currentDirectory =
-        datePartitionedRecordsWriterFactory
-            .createWriter("test_filename.avro")
-            .getPath()
-            .getParent()
-            .getName();
+        datePartitionedRecordsWriterFactory.createWriter().getPath().getParent().getName();
 
     // Act
     boolean isUpdated = datePartitionedRecordsWriterFactory.maybeUpdateRolloverTime();
@@ -187,7 +224,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
   private DatePartitionedRecordsWriterFactory createRecordsWriterFactory(Clock clock)
       throws IOException {
     return new DatePartitionedRecordsWriterFactory(
-        new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock);
+        new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock, UUID.fromString(TEST_UUID));
   }
 
   private Instant parseDateTime(String dateTimeString) {
@@ -196,6 +233,6 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
   private String getCurrentWriterFolder(DatePartitionedRecordsWriterFactory recordsWriterFactory)
       throws IOException {
-    return recordsWriterFactory.createWriter("test_filename.avro").getPath().getParent().getName();
+    return recordsWriterFactory.createWriter().getPath().getParent().getName();
   }
 }
