@@ -154,7 +154,7 @@ public class EventLogger {
     return null;
   }
 
-  private void handleTick() {
+  private synchronized void handleTick() {
     try {
       maybeRolloverWriterForDay();
     } catch (IOException e) {
@@ -174,7 +174,7 @@ public class EventLogger {
     }
   }
 
-  private void writeEventWithRetries(GenericRecord event) {
+  private synchronized void writeEventWithRetries(GenericRecord event) {
     for (int retryCount = 0; retryCount <= MAX_RETRIES; ++retryCount) {
       try {
         maybeRolloverWriterForDay();
