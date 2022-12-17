@@ -17,10 +17,13 @@ package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -41,14 +44,20 @@ public class DatePartitionedRecordsWriterFactory {
   private final Configuration conf;
   private final Schema schema;
   private final Clock clock;
+  private Instant rolloverTime;
+  private final UUID loggerId;
+  private int logFileCount = 0;
 
   public DatePartitionedRecordsWriterFactory(
-      Path baseDir, Configuration conf, Schema schema, Clock clock) throws IOException {
+      Path baseDir, Configuration conf, Schema schema, Clock clock, UUID loggerId)
+      throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
     this.schema = schema;
     this.clock = clock;
+    this.loggerId = loggerId;
     basePath = baseDir.getFileSystem(conf).resolvePath(baseDir);
+    rolloverTime = calculateNextRolloverTime();
   }
 
   public static LocalDate getDateFromDir(String dirName) {
@@ -59,9 +68,33 @@ public class DatePartitionedRecordsWriterFactory {
     }
   }
 
-  public RecordsWriter createWriter(String fileName) throws IOException {
-    Path filePath = getPathForDate(getNow(), fileName);
+  /**
+   * Creates new writer for the current date. Each new invocation increments the {@code
+   * logFileCount}.
+   */
+  public RecordsWriter createWriter() throws IOException {
+    ++logFileCount;
+    String fileName = constructFileName();
+    Path filePath = getPathForDate(getCurrentDate(), fileName);
     return new RecordsWriter(conf, filePath, schema);
+  }
+
+  public boolean shouldRollover() {
+    return clock.instant().isAfter(rolloverTime);
+  }
+
+  public boolean maybeUpdateRolloverTime() {
+    if (!shouldRollover()) {
+      LOG.debug(
+          "Trying to update rollover time, but the current time is not after rollover time: {}, ignoring call",
+          rolloverTime);
+      return false;
+    }
+
+    rolloverTime = calculateNextRolloverTime();
+    // Day changes over case, reset the logFileCount.
+    logFileCount = 0;
+    return true;
   }
 
   private void createDirIfNotExists(Path path) throws IOException {
@@ -87,7 +120,15 @@ public class DatePartitionedRecordsWriterFactory {
     return DateTimeFormatter.ISO_LOCAL_DATE.format(date);
   }
 
-  public LocalDate getNow() {
+  private Instant calculateNextRolloverTime() {
+    return clock.instant().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+  }
+
+  private LocalDate getCurrentDate() {
     return clock.instant().atOffset(ZoneOffset.UTC).toLocalDate();
+  }
+
+  private String constructFileName() {
+    return "dwhassessment_" + loggerId + "_" + logFileCount + ".avro";
   }
 }

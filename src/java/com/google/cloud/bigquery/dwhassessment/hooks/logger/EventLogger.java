@@ -14,7 +14,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.compress.utils.IOUtils;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
-import java.time.LocalDate;
 import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
@@ -41,15 +40,13 @@ public class EventLogger {
   private static final int QUERY_EVENTS_QUEUE_DEFAULT_SIZE = 64;
   private static final Duration DEFAULT_ROLLOVER_CHECK_INTERVAL_DURATION = Duration.ofMinutes(10);
 
-  private final DatePartitionedRecordsWriterFactory logger;
+  private final DatePartitionedRecordsWriterFactory recordsWriterFactory;
   private final EventRecordConstructor eventRecordConstructor;
   private final ScheduledThreadPoolExecutor logWriter;
   private final int queueCapacity;
   private final UUID loggerId;
 
-  private int logFileCount = 0;
   private RecordsWriter writer;
-  private LocalDate writerDate;
 
   // Singleton using DCL.
   private static volatile EventLogger instance;
@@ -81,8 +78,8 @@ public class EventLogger {
           HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName());
     }
 
-    logger = createLogger(baseDir, conf, clock);
-    if (logger == null) {
+    recordsWriterFactory = createRecordsWriterFactory(baseDir, conf, clock);
+    if (recordsWriterFactory == null) {
       logWriter = null;
       return;
     }
@@ -108,7 +105,7 @@ public class EventLogger {
   }
 
   public void handle(HookContext hookContext) {
-    if (logger == null) {
+    if (recordsWriterFactory == null) {
       return;
     }
     // Note: same hookContext object is used for all the events for a given query, if we try to
@@ -141,13 +138,15 @@ public class EventLogger {
     }
   }
 
-  private DatePartitionedRecordsWriterFactory createLogger(String baseDir, HiveConf conf, Clock clock) {
+  private DatePartitionedRecordsWriterFactory createRecordsWriterFactory(
+      String baseDir, HiveConf conf, Clock clock) {
     if (baseDir == null) {
       return null;
     }
 
     try {
-      return new DatePartitionedRecordsWriterFactory(new Path(baseDir), conf, QUERY_EVENT_SCHEMA, clock);
+      return new DatePartitionedRecordsWriterFactory(
+          new Path(baseDir), conf, QUERY_EVENT_SCHEMA, clock, loggerId);
     } catch (IOException e) {
       LOG.error("Unable to initialize logger, logging disabled.", e);
     }
@@ -155,11 +154,7 @@ public class EventLogger {
     return null;
   }
 
-  private String constructFileName() {
-    return "dwhassessment_" + loggerId + "_" + logFileCount + ".avro";
-  }
-
-  private void handleTick() {
+  private synchronized void handleTick() {
     try {
       maybeRolloverWriterForDay();
     } catch (IOException e) {
@@ -168,21 +163,18 @@ public class EventLogger {
   }
 
   private void maybeRolloverWriterForDay() throws IOException {
-    if (writer == null || !logger.getNow().equals(writerDate)) {
+    if (writer == null || recordsWriterFactory.shouldRollover()) {
       if (writer != null) {
-        // Day changes over case, reset the logFileCount.
-        logFileCount = 0;
         IOUtils.closeQuietly(writer);
         writer = null;
       }
-      // increment log file count, if creating a new writer.
-      ++logFileCount;
-      writer = logger.createWriter(constructFileName());
-      writerDate = DatePartitionedRecordsWriterFactory.getDateFromDir(writer.getPath().getParent().getName());
+
+      writer = recordsWriterFactory.createWriter();
+      recordsWriterFactory.maybeUpdateRolloverTime();
     }
   }
 
-  private void writeEventWithRetries(GenericRecord event) {
+  private synchronized void writeEventWithRetries(GenericRecord event) {
     for (int retryCount = 0; retryCount <= MAX_RETRIES; ++retryCount) {
       try {
         maybeRolloverWriterForDay();
