@@ -43,7 +43,7 @@
       "default": null
     },
     {
-      "name": "User",
+      "name": "UserName",
       "type": [
         "null",
         "string"
@@ -67,7 +67,18 @@
       "default": null
     },
     {
-      "name": "Timestamp",
+      "name": "StartTime",
+      "type": [
+        "null",
+        {
+          "type": "long",
+          "logicalType": "timestamp-millis"
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "EndTime",
       "type": [
         "null",
         {
