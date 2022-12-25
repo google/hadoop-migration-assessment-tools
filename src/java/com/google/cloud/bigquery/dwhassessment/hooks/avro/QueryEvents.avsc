@@ -90,18 +90,22 @@
     },
     {
       "name": "TablesRead",
-      "type": {
-        "type": "array",
-        "items": "string"
-      },
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
       "default": []
     },
     {
       "name": "TablesWritten",
-      "type": {
-        "type": "array",
-        "items": "string"
-      },
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
       "default": []
     },
     {
