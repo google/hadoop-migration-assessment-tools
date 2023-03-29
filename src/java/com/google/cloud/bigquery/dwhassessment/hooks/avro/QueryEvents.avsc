@@ -133,6 +133,22 @@
       "default": null
     },
     {
+      "name": "MapReduceCountersObject",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "TezCountersObject",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
       "name": "SessionId",
       "type": [
         "null",

@@ -28,8 +28,11 @@ import java.net.UnknownHostException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -40,12 +43,17 @@ import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
+import org.apache.hadoop.hive.ql.log.PerfLogger;
+import org.apache.tez.common.counters.TezCounter;
+import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONObject;
+import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Constructor for generic records for given hook event. */
 public class EventRecordConstructor {
+
   private static final Logger LOG = LoggerFactory.getLogger(EventRecordConstructor.class);
 
   private final Clock clock;
@@ -100,6 +108,8 @@ public class EventRecordConstructor {
         .set("HiveAddress", getHiveInstanceAddress(hookContext))
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("LlapApplicationId", determineLlapId(conf, executionMode))
+        .set("MapReduceCountersObject", dumpMapReduceCounters(mrTasks))
+        .set("TezCountersObject", dumpTezCounters(tezTasks))
         .set("OperationId", hookContext.getOperationId())
         .build();
   }
@@ -108,26 +118,71 @@ public class EventRecordConstructor {
     QueryPlan plan = hookContext.getQueryPlan();
     LOG.info("Received post-hook notification for: {}", plan.getQueryId());
 
-    GenericRecordBuilder eventBuilder =
-        new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
-            .set("QueryId", plan.getQueryId())
-            .set("EventType", EventType.QUERY_COMPLETED.name())
-            .set("EndTime", clock.millis())
-            .set("UserName", getUser(hookContext))
-            .set("RequestUser", getRequestUser(hookContext))
-            .set("Status", status.name())
-            .set("ErrorMessage", hookContext.getErrorMessage())
-            .set("HookVersion", HOOK_VERSION)
-            .set("OperationId", hookContext.getOperationId());
+    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
+    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
 
-    JSONObject perfObj = new JSONObject();
-    for (String key : hookContext.getPerfLogger().getEndTimes().keySet()) {
-      perfObj.put(key, hookContext.getPerfLogger().getDuration(key));
+    return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
+        .set("QueryId", plan.getQueryId())
+        .set("EventType", EventType.QUERY_COMPLETED.name())
+        .set("EndTime", clock.millis())
+        .set("UserName", getUser(hookContext))
+        .set("RequestUser", getRequestUser(hookContext))
+        .set("Status", status.name())
+        .set("ErrorMessage", hookContext.getErrorMessage())
+        .set("HookVersion", HOOK_VERSION)
+        .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
+        .set("MapReduceCountersObject", dumpMapReduceCounters(mrTasks))
+        .set("TezCountersObject", dumpTezCounters(tezTasks))
+        .set("OperationId", hookContext.getOperationId())
+        .build();
+  }
+
+  private static String dumpMapReduceCounters(List<ExecDriver> mrTasks) {
+    return new JSONArray(mrTasks.stream().map(ExecDriver::getCounters).collect(Collectors.toList()))
+        .toString();
+  }
+
+  /**
+   * Tez tasks counters is a deeply nested set of key - value pairs. This attempts to dump them as
+   * is, preserving their original structure.
+   */
+  private static String dumpTezCounters(List<TezTask> tezTasks) {
+    JSONArray outerObj = new JSONArray();
+
+    for (TezTask tezTask : tezTasks) {
+      TezCounters tezCounters = tezTask.getTezCounters();
+      if (Objects.isNull(tezCounters)) {
+        continue;
+      }
+
+      JSONArray taskObj = new JSONArray();
+
+      tezCounters.forEach(
+          counterGroup -> {
+            JSONObject groupCounters =
+                new JSONObject(
+                    StreamSupport.stream(counterGroup.spliterator(), false)
+                        .collect(Collectors.toMap(TezCounter::getName, TezCounter::getValue)));
+            JSONObject counterGroupData =
+                new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
+
+            taskObj.put(counterGroupData);
+          });
+
+      outerObj.put(taskObj);
     }
 
-    eventBuilder.set("PerfObject", perfObj.toString());
+    return outerObj.toString();
+  }
 
-    return eventBuilder.build();
+  private static String dumpPerfData(PerfLogger perfLogger) {
+    JSONObject perfObj = new JSONObject();
+
+    for (String key : perfLogger.getEndTimes().keySet()) {
+      perfObj.put(key, perfLogger.getDuration(key));
+    }
+
+    return perfObj.toString();
   }
 
   private static List<String> getTablesFromEntitySet(Set<? extends Entity> entities) {

@@ -112,6 +112,8 @@ public class MigrationAssessmentLoggingHookTest {
                 .set("HiveAddress", "hive_addr")
                 .set("HiveInstanceType", "HS2")
                 .set("OperationId", "test_op_id")
+                .set("MapReduceCountersObject", "[]")
+                .set("TezCountersObject", "[]")
                 .build());
   }
 

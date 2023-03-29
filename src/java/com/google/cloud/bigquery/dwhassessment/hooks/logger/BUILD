@@ -25,6 +25,7 @@ java_library(
         "@maven//:org_apache_commons_commons_compress",
         "@maven//:org_apache_hadoop_hadoop_common",
         "@maven//:org_apache_hive_hive_exec_2_2_0",
+        "@maven//:org_apache_tez_tez_api_0_8_5",
         "@maven//:org_slf4j_slf4j_api",
     ],
 )
