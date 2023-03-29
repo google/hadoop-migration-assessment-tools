@@ -28,7 +28,6 @@ import java.net.UnknownHostException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -151,7 +150,7 @@ public class EventRecordConstructor {
 
     for (TezTask tezTask : tezTasks) {
       TezCounters tezCounters = tezTask.getTezCounters();
-      if (Objects.isNull(tezCounters)) {
+      if (tezCounters == null) {
         continue;
       }
 
