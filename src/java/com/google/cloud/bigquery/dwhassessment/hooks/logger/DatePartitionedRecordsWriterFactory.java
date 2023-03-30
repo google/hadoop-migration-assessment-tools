@@ -16,13 +16,16 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 import static java.time.temporal.ChronoField.HOUR_OF_DAY;
 import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
+import static org.apache.commons.lang.ObjectUtils.min;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -31,6 +34,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import org.apache.avro.Schema;
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -43,11 +47,7 @@ import org.slf4j.LoggerFactory;
  * dates.
  */
 public class DatePartitionedRecordsWriterFactory {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(DatePartitionedRecordsWriterFactory.class);
-  private static final FsPermission DIR_PERMISSION = FsPermission.createImmutable((short) 1023);
-
-  private static final DateTimeFormatter LOG_TIME_FORMAT =
+  public static final DateTimeFormatter LOG_TIME_FORMAT =
       new DateTimeFormatterBuilder()
           .parseCaseInsensitive()
           .append(ISO_LOCAL_DATE)
@@ -60,21 +60,32 @@ public class DatePartitionedRecordsWriterFactory {
           .appendFraction(NANO_OF_SECOND, 0, 9, true)
           .toFormatter();
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(DatePartitionedRecordsWriterFactory.class);
+  private static final FsPermission DIR_PERMISSION = FsPermission.createImmutable((short) 1023);
+
   private final Path basePath;
   private final Configuration conf;
   private final Schema schema;
   private final Clock clock;
   private Instant rolloverTime;
   private final String loggerId;
+  private final Duration rolloverInterval;
 
   public DatePartitionedRecordsWriterFactory(
-      Path baseDir, Configuration conf, Schema schema, Clock clock, String loggerId)
+      Path baseDir,
+      Configuration conf,
+      Schema schema,
+      Clock clock,
+      String loggerId,
+      Duration rolloverInterval)
       throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
     this.schema = schema;
     this.clock = clock;
     this.loggerId = loggerId;
+    this.rolloverInterval = rolloverInterval;
     basePath = baseDir.getFileSystem(conf).resolvePath(baseDir);
     rolloverTime = calculateNextRolloverTime();
   }
@@ -111,6 +122,12 @@ public class DatePartitionedRecordsWriterFactory {
     }
 
     rolloverTime = calculateNextRolloverTime();
+
+    LOG.info(
+        "Rolling over file for logger ID '{}'. Next rollover is expected at '{}'",
+        loggerId,
+        ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
+
     return true;
   }
 
@@ -137,8 +154,16 @@ public class DatePartitionedRecordsWriterFactory {
     return ISO_LOCAL_DATE.format(date);
   }
 
+  /**
+   * Next rollover time is at next configured interval or at the beginning of the next day,
+   * depending on what will happen earlier.
+   */
   private Instant calculateNextRolloverTime() {
-    return clock.instant().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+    Instant currentInstant = clock.instant();
+    Instant nextRollover = currentInstant.plus(rolloverInterval).truncatedTo(ChronoUnit.MINUTES);
+    Instant nextDay = currentInstant.plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+
+    return (Instant) min(nextRollover, nextDay);
   }
 
   private LocalDate getCurrentDate() {

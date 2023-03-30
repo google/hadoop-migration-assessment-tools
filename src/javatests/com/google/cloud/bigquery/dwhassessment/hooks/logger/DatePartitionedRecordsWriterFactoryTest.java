@@ -66,7 +66,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
     // Act
     new DatePartitionedRecordsWriterFactory(
-        targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock, TEST_ID);
+        targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock, TEST_ID, Duration.ofMinutes(30));
 
     // Assert
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
@@ -119,13 +119,13 @@ public class DatePartitionedRecordsWriterFactoryTest {
   }
 
   @Test
-  public void shouldRollover_returnsFalseForSameDate() throws Exception {
+  public void shouldRollover_returnsFalseIfIsNotAfterRolloverDate() throws Exception {
     TickableFixedClock clock = new TickableFixedClock(parseDateTime("2022-12-25T12:00:00.00Z"));
     DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
         createRecordsWriterFactory(clock);
 
     // Act
-    clock.tick(Duration.ofHours(11));
+    clock.tick(Duration.ofMinutes(25));
     boolean shouldRollover = datePartitionedRecordsWriterFactory.shouldRollover();
 
     // Assert
@@ -139,7 +139,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
         createRecordsWriterFactory(clock);
 
     // Act
-    clock.tick(Duration.ofHours(20));
+    clock.tick(Duration.ofMinutes(35));
     boolean shouldRollover = datePartitionedRecordsWriterFactory.shouldRollover();
 
     // Assert
@@ -169,7 +169,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
         datePartitionedRecordsWriterFactory.createWriter().getPath().getParent().getName();
 
     // Act
-    clock.tick(Duration.ofHours(3));
+    clock.tick(Duration.ofMinutes(29));
     boolean isUpdated = datePartitionedRecordsWriterFactory.maybeUpdateRolloverTime();
 
     // Assert
@@ -217,11 +217,16 @@ public class DatePartitionedRecordsWriterFactoryTest {
   private DatePartitionedRecordsWriterFactory createRecordsWriterFactory(Clock clock)
       throws IOException {
     return new DatePartitionedRecordsWriterFactory(
-        new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock, TEST_ID);
+        new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock, TEST_ID, Duration.ofMinutes(30));
   }
 
   private String createExpectedFileName(Instant instant) {
-    return "dwhassessment_" + instant.toEpochMilli() + "_" + TEST_ID + ".avro";
+    return "dwhassessment_"
+        + DatePartitionedRecordsWriterFactory.LOG_TIME_FORMAT.format(
+            instant.atOffset(ZoneOffset.UTC))
+        + "_"
+        + TEST_ID
+        + ".avro";
   }
 
   private static Instant parseDateTime(String dateTimeString) {
