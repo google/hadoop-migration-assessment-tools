@@ -22,12 +22,9 @@ import org.apache.commons.lang.RandomStringUtils;
 public final class IdGenerator {
   private static final int ID_LENGTH = 10;
 
-  private static final String ALLOWED_CHARACTERS =
-      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
   private IdGenerator() {}
 
   public static String generate() {
-    return RandomStringUtils.random(ID_LENGTH, ALLOWED_CHARACTERS);
+    return RandomStringUtils.randomAlphanumeric(ID_LENGTH);
   }
 }
