@@ -22,6 +22,7 @@ java_library(
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger/utils",
         "@maven//:com_google_guava_guava",
+        "@maven//:commons_lang_commons_lang",
         "@maven//:org_apache_avro_avro",
         "@maven//:org_apache_commons_commons_compress",
         "@maven//:org_apache_hadoop_hadoop_common",

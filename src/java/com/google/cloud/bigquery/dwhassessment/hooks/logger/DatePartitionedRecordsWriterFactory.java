@@ -21,6 +21,7 @@ import static java.time.temporal.ChronoField.HOUR_OF_DAY;
 import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
+import static org.apache.commons.lang.ObjectUtils.min;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -33,6 +34,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import org.apache.avro.Schema;
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -161,7 +163,7 @@ public class DatePartitionedRecordsWriterFactory {
     Instant nextRollover = currentInstant.plus(rolloverInterval).truncatedTo(ChronoUnit.MINUTES);
     Instant nextDay = currentInstant.plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
 
-    return nextDay.isAfter(nextRollover) ? nextRollover : nextDay;
+    return (Instant) min(nextRollover, nextDay);
   }
 
   private LocalDate getCurrentDate() {
