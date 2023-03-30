@@ -16,6 +16,7 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 import static java.time.temporal.ChronoField.HOUR_OF_DAY;
 import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
@@ -119,6 +120,12 @@ public class DatePartitionedRecordsWriterFactory {
     }
 
     rolloverTime = calculateNextRolloverTime();
+
+    LOG.info(
+        "Rolling over file for logger ID '{}'. Next rollover is expected at '{}'",
+        loggerId,
+        ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
+
     return true;
   }
 
