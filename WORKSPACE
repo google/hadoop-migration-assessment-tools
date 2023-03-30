@@ -44,6 +44,12 @@ maven_install(
             neverlink = True,
         ),
         maven.artifact(
+            "commons-lang",
+            "commons-lang",
+            "2.6",
+            neverlink = True,
+        ),
+        maven.artifact(
             "org.apache.hadoop",
             "hadoop-common",
             "2.2.0",
@@ -109,6 +115,7 @@ maven_install(
         "org.apache.hive:hive-exec:2.2.0",
         "org.apache.tez:tez-api:0.8.5",
         "org.apache.tez:tez-common:0.8.5",
+        "commons-lang:commons-lang:2.6",
         "com.google.auto.value:auto-value:1.8.2",
         "com.google.auto.value:auto-value-annotations:1.8.2",
         "com.google.guava:guava:29.0-jre",

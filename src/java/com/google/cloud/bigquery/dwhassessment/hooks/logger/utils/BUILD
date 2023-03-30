@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2022-2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,17 +16,9 @@ load("@rules_java//java:defs.bzl", "java_library")
 package(default_visibility = ["//src:internal"])
 
 java_library(
-    name = "logger",
+    name = "utils",
     srcs = glob(["*.java"]),
     deps = [
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger/utils",
-        "@maven//:com_google_guava_guava",
-        "@maven//:org_apache_avro_avro",
-        "@maven//:org_apache_commons_commons_compress",
-        "@maven//:org_apache_hadoop_hadoop_common",
-        "@maven//:org_apache_hive_hive_exec_2_2_0",
-        "@maven//:org_apache_tez_tez_api_0_8_5",
-        "@maven//:org_slf4j_slf4j_api",
+        "@maven//:commons_lang_commons_lang",
     ],
 )

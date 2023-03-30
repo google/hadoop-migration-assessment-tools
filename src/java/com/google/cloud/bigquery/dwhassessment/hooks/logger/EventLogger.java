@@ -22,6 +22,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
@@ -30,7 +31,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.compress.utils.IOUtils;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
-import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -60,7 +60,7 @@ public class EventLogger {
   private final EventRecordConstructor eventRecordConstructor;
   private final ScheduledThreadPoolExecutor logWriter;
   private final int queueCapacity;
-  private final UUID loggerId;
+  private final String loggerId;
 
   private RecordsWriter writer;
 
@@ -81,7 +81,7 @@ public class EventLogger {
 
   protected EventLogger(HiveConf conf, Clock clock) {
     eventRecordConstructor = new EventRecordConstructor(clock);
-    loggerId = UUID.randomUUID();
+    loggerId = IdGenerator.generate();
     queueCapacity =
         conf.getInt(
             HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName(), QUERY_EVENTS_QUEUE_DEFAULT_SIZE);

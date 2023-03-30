@@ -46,7 +46,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
-  private static final String TEST_UUID = "a665f132-0606-4602-855d-04cd8a747f55";
+  private static final String TEST_ID = "a665f132";
 
   private HiveConf conf;
   private String tmpFolder;
@@ -66,7 +66,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
     // Act
     new DatePartitionedRecordsWriterFactory(
-        targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock, UUID.randomUUID());
+        targetDirectoryPath, conf, QUERY_EVENT_SCHEMA, fixedClock, TEST_ID);
 
     // Assert
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
@@ -91,7 +91,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
         .isEqualTo(
             new Path(
                 targetDirectoryPath.getFileSystem(conf).resolvePath(targetDirectoryPath),
-                "dwhassessment_" + TEST_UUID + "_1.avro"));
+                "dwhassessment_" + TEST_ID + "_1.avro"));
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
     assertThat(existedBefore).isFalse();
   }
@@ -108,9 +108,9 @@ public class DatePartitionedRecordsWriterFactoryTest {
     RecordsWriter writer3 = datePartitionedRecordsWriterFactory.createWriter();
 
     // Assert
-    assertThat(writer1.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_1.avro");
-    assertThat(writer2.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_2.avro");
-    assertThat(writer3.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_3.avro");
+    assertThat(writer1.getPath().getName()).isEqualTo("dwhassessment_" + TEST_ID + "_1.avro");
+    assertThat(writer2.getPath().getName()).isEqualTo("dwhassessment_" + TEST_ID + "_2.avro");
+    assertThat(writer3.getPath().getName()).isEqualTo("dwhassessment_" + TEST_ID + "_3.avro");
   }
 
   @Test
@@ -131,10 +131,10 @@ public class DatePartitionedRecordsWriterFactoryTest {
     RecordsWriter writer3 = datePartitionedRecordsWriterFactory.createWriter();
 
     // Assert
-    assertThat(writer1.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_1.avro");
-    assertThat(writer2.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_2.avro");
+    assertThat(writer1.getPath().getName()).isEqualTo("dwhassessment_" + TEST_ID + "_1.avro");
+    assertThat(writer2.getPath().getName()).isEqualTo("dwhassessment_" + TEST_ID + "_2.avro");
     assertThat(writer2.getPath().getParent().getName()).isEqualTo("2022-12-25");
-    assertThat(writer3.getPath().getName()).isEqualTo("dwhassessment_" + TEST_UUID + "_1.avro");
+    assertThat(writer3.getPath().getName()).isEqualTo("dwhassessment_" + TEST_ID + "_1.avro");
     assertThat(writer3.getPath().getParent().getName()).isEqualTo("2022-12-26");
   }
 
@@ -240,7 +240,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
   private DatePartitionedRecordsWriterFactory createRecordsWriterFactory(Clock clock)
       throws IOException {
     return new DatePartitionedRecordsWriterFactory(
-        new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock, UUID.fromString(TEST_UUID));
+        new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock, TEST_ID);
   }
 
   private Instant parseDateTime(String dateTimeString) {

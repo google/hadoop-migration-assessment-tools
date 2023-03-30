@@ -23,7 +23,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,11 +44,11 @@ public class DatePartitionedRecordsWriterFactory {
   private final Schema schema;
   private final Clock clock;
   private Instant rolloverTime;
-  private final UUID loggerId;
+  private final String loggerId;
   private int logFileCount = 0;
 
   public DatePartitionedRecordsWriterFactory(
-      Path baseDir, Configuration conf, Schema schema, Clock clock, UUID loggerId)
+      Path baseDir, Configuration conf, Schema schema, Clock clock, String loggerId)
       throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
