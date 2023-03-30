@@ -13,13 +13,36 @@
 # limitations under the License.
 load("@rules_java//java:defs.bzl", "java_library", "java_test")
 
+java_plugin(
+    name = "autovalue_plugin",
+    processor_class = "com.google.auto.value.processor.AutoValueProcessor",
+    deps = [
+        "@maven_tests//:com_google_auto_value_auto_value",
+    ],
+)
+
+java_library(
+    name = "autovalue",
+    exported_plugins = [
+        ":autovalue_plugin",
+    ],
+    neverlink = 1,
+    exports = [
+        "@maven_tests//:com_google_auto_value_auto_value",
+    ],
+)
+
 java_library(
     name = "tests",
     testonly = 1,
     srcs = glob(["*.java"]),
     deps = [
+        ":autovalue",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
+        "@maven_tests//:com_google_auto_value_auto_value",
+        "@maven_tests//:com_google_auto_value_auto_value_annotations",
+        "@maven_tests//:com_google_guava_guava",
         "@maven_tests//:com_google_truth_extensions_truth_java8_extension",
         "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:junit_junit",
@@ -28,6 +51,7 @@ java_library(
         "@maven_tests//:org_apache_hadoop_hadoop_yarn_common",
         "@maven_tests//:org_apache_hive_hive_common",
         "@maven_tests//:org_apache_hive_hive_exec",
+        "@maven_tests//:org_apache_tez_tez_api_0_8_5",
         "@maven_tests//:org_mockito_mockito_core",
         "@maven_tests//:org_slf4j_slf4j_api",
     ],

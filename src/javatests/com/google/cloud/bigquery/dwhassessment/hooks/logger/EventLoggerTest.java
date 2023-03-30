@@ -101,6 +101,8 @@ public class EventLoggerTest {
                 .set("HiveAddress", "hive_addr")
                 .set("HiveInstanceType", "HS2")
                 .set("OperationId", "test_op_id")
+                .set("MapReduceCountersObject", "[]")
+                .set("TezCountersObject", "[]")
                 .build());
   }
 
@@ -130,6 +132,8 @@ public class EventLoggerTest {
                 .set("Status", "SUCCESS")
                 .set("PerfObject", "{}")
                 .set("HookVersion", "1.0")
+                .set("MapReduceCountersObject", "[]")
+                .set("TezCountersObject", "[]")
                 .build());
   }
 
@@ -159,6 +163,8 @@ public class EventLoggerTest {
                 .set("Status", "FAIL")
                 .set("PerfObject", "{}")
                 .set("HookVersion", "1.0")
+                .set("MapReduceCountersObject", "[]")
+                .set("TezCountersObject", "[]")
                 .build());
   }
 
