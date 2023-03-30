@@ -45,7 +45,6 @@ public class DatePartitionedRecordsWriterFactory {
   private final Clock clock;
   private Instant rolloverTime;
   private final String loggerId;
-  private int logFileCount = 0;
 
   public DatePartitionedRecordsWriterFactory(
       Path baseDir, Configuration conf, Schema schema, Clock clock, String loggerId)
@@ -72,7 +71,6 @@ public class DatePartitionedRecordsWriterFactory {
    * logFileCount}.
    */
   public RecordsWriter createWriter() throws IOException {
-    ++logFileCount;
     String fileName = constructFileName();
     Path filePath = getPathForDate(getCurrentDate(), fileName);
     return new RecordsWriter(conf, filePath, schema);
@@ -91,8 +89,6 @@ public class DatePartitionedRecordsWriterFactory {
     }
 
     rolloverTime = calculateNextRolloverTime();
-    // Day changes over case, reset the logFileCount.
-    logFileCount = 0;
     return true;
   }
 
@@ -128,6 +124,6 @@ public class DatePartitionedRecordsWriterFactory {
   }
 
   private String constructFileName() {
-    return "dwhassessment_" + loggerId + "_" + logFileCount + ".avro";
+    return "dwhassessment_" + clock.instant().toEpochMilli() + "_" + loggerId + ".avro";
   }
 }
