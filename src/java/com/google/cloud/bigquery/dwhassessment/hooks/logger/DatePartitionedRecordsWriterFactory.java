@@ -15,12 +15,19 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.temporal.ChronoField.HOUR_OF_DAY;
+import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
+import static java.time.temporal.ChronoField.NANO_OF_SECOND;
+import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
+
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import org.apache.avro.Schema;
@@ -39,6 +46,20 @@ public class DatePartitionedRecordsWriterFactory {
   private static final Logger LOG =
       LoggerFactory.getLogger(DatePartitionedRecordsWriterFactory.class);
   private static final FsPermission DIR_PERMISSION = FsPermission.createImmutable((short) 1023);
+
+  private static final DateTimeFormatter LOG_TIME_FORMAT =
+      new DateTimeFormatterBuilder()
+          .parseCaseInsensitive()
+          .append(ISO_LOCAL_DATE)
+          .appendLiteral('T')
+          .appendValue(HOUR_OF_DAY, 2)
+          .appendValue(MINUTE_OF_HOUR, 2)
+          .optionalStart()
+          .appendValue(SECOND_OF_MINUTE, 2)
+          .optionalStart()
+          .appendFraction(NANO_OF_SECOND, 0, 9, true)
+          .toFormatter();
+
   private final Path basePath;
   private final Configuration conf;
   private final Schema schema;
@@ -60,7 +81,7 @@ public class DatePartitionedRecordsWriterFactory {
 
   public static LocalDate getDateFromDir(String dirName) {
     try {
-      return LocalDate.parse(dirName, DateTimeFormatter.ISO_LOCAL_DATE);
+      return LocalDate.parse(dirName, ISO_LOCAL_DATE);
     } catch (DateTimeParseException e) {
       throw new IllegalArgumentException("Invalid directory: " + dirName, e);
     }
@@ -83,7 +104,8 @@ public class DatePartitionedRecordsWriterFactory {
   public boolean maybeUpdateRolloverTime() {
     if (!shouldRollover()) {
       LOG.debug(
-          "Trying to update rollover time, but the current time is not after rollover time: {}, ignoring call",
+          "Trying to update rollover time, but the current time is not after rollover time: {},"
+              + " ignoring call",
           rolloverTime);
       return false;
     }
@@ -112,7 +134,7 @@ public class DatePartitionedRecordsWriterFactory {
   }
 
   private String getDirForDate(LocalDate date) {
-    return DateTimeFormatter.ISO_LOCAL_DATE.format(date);
+    return ISO_LOCAL_DATE.format(date);
   }
 
   private Instant calculateNextRolloverTime() {
@@ -124,6 +146,10 @@ public class DatePartitionedRecordsWriterFactory {
   }
 
   private String constructFileName() {
-    return "dwhassessment_" + clock.instant().toEpochMilli() + "_" + loggerId + ".avro";
+    return "dwhassessment_"
+        + LOG_TIME_FORMAT.format(clock.instant().atOffset(ZoneOffset.UTC))
+        + "_"
+        + loggerId
+        + ".avro";
   }
 }

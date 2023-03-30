@@ -46,8 +46,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   private static final String TEST_ID = "a665f132";
-  private static final long DEFAULT_TIMESTAMP =
-      parseDateTime("2022-12-25T12:00:00.00Z").toEpochMilli();
+  private static final Instant DEFAULT_TIMESTAMP = parseDateTime("2022-12-25T12:00:22.3344Z");
 
   private HiveConf conf;
   private String tmpFolder;
@@ -60,7 +59,7 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
   @Test
   public void constructor_createsDirectoryIfNotExists() throws Exception {
-    Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(DEFAULT_TIMESTAMP), ZoneOffset.UTC);
+    Clock fixedClock = Clock.fixed(DEFAULT_TIMESTAMP, ZoneOffset.UTC);
     Path targetDirectoryPath = new Path(tmpFolder, "test_directory");
     FileSystem fs = targetDirectoryPath.getFileSystem(conf);
     boolean existedBefore = fs.exists(targetDirectoryPath);
@@ -76,13 +75,12 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
   @Test
   public void getWriter_createsRecordWriterForCurrentDateDirectory() throws Exception {
-    Instant fixedInstant = Instant.ofEpochMilli(DEFAULT_TIMESTAMP);
-    LocalDate targetDate = fixedInstant.atOffset(ZoneOffset.UTC).toLocalDate();
+    LocalDate targetDate = DEFAULT_TIMESTAMP.atOffset(ZoneOffset.UTC).toLocalDate();
     Path targetDirectoryPath = new Path(tmpFolder, targetDate.toString());
     FileSystem fs = targetDirectoryPath.getFileSystem(conf);
     boolean existedBefore = fs.exists(targetDirectoryPath);
     DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
-        createRecordsWriterFactory(Clock.fixed(fixedInstant, ZoneOffset.UTC));
+        createRecordsWriterFactory(Clock.fixed(DEFAULT_TIMESTAMP, ZoneOffset.UTC));
 
     // Act
     RecordsWriter writer = datePartitionedRecordsWriterFactory.createWriter();
@@ -92,14 +90,14 @@ public class DatePartitionedRecordsWriterFactoryTest {
         .isEqualTo(
             new Path(
                 targetDirectoryPath.getFileSystem(conf).resolvePath(targetDirectoryPath),
-                "dwhassessment_1671969600000_a665f132.avro"));
+                "dwhassessment_2022-12-25T120022.3344_a665f132.avro"));
     assertThat(fs.exists(targetDirectoryPath)).isTrue();
     assertThat(existedBefore).isFalse();
   }
 
   @Test
   public void getWriter_updatesDirectoryWithRollover() throws Exception {
-    TickableFixedClock clock = new TickableFixedClock(Instant.ofEpochMilli(DEFAULT_TIMESTAMP));
+    TickableFixedClock clock = new TickableFixedClock(DEFAULT_TIMESTAMP);
     DatePartitionedRecordsWriterFactory datePartitionedRecordsWriterFactory =
         createRecordsWriterFactory(clock);
     // Act
@@ -112,12 +110,11 @@ public class DatePartitionedRecordsWriterFactoryTest {
 
     // Assert
     assertThat(writer1.getPath().getName()).isEqualTo(createExpectedFileName(DEFAULT_TIMESTAMP));
-    long secondRecordTimestamp = parseDateTime("2022-12-25T12:20:00.00Z").toEpochMilli();
-    assertThat(writer2.getPath().getName())
-        .isEqualTo(createExpectedFileName(secondRecordTimestamp));
+    Instant secondRecordInstant = parseDateTime("2022-12-25T12:20:22.3344Z");
+    assertThat(writer2.getPath().getName()).isEqualTo(createExpectedFileName(secondRecordInstant));
     assertThat(writer2.getPath().getParent().getName()).isEqualTo("2022-12-25");
-    long thirdRecordTimestamp = parseDateTime("2022-12-26T12:20:00.00Z").toEpochMilli();
-    assertThat(writer3.getPath().getName()).isEqualTo(createExpectedFileName(thirdRecordTimestamp));
+    Instant thirdRecordInstant = parseDateTime("2022-12-26T12:20:22.3344Z");
+    assertThat(writer3.getPath().getName()).isEqualTo(createExpectedFileName(thirdRecordInstant));
     assertThat(writer3.getPath().getParent().getName()).isEqualTo("2022-12-26");
   }
 
@@ -223,8 +220,8 @@ public class DatePartitionedRecordsWriterFactoryTest {
         new Path(tmpFolder), conf, QUERY_EVENT_SCHEMA, clock, TEST_ID);
   }
 
-  private String createExpectedFileName(long timestamp) {
-    return "dwhassessment_" + timestamp + "_" + TEST_ID  + ".avro";
+  private String createExpectedFileName(Instant instant) {
+    return "dwhassessment_" + instant.toEpochMilli() + "_" + TEST_ID + ".avro";
   }
 
   private static Instant parseDateTime(String dateTimeString) {
