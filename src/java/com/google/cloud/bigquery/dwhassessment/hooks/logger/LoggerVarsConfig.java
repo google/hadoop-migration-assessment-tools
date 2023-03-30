@@ -28,9 +28,16 @@ public enum LoggerVarsConfig {
   HIVE_QUERY_EVENTS_BASE_PATH(
       "dwhassessment.hook.base-directory",
       "Base directory for query event messages written by Migration Assessment hook."),
-  HIVE_QUERY_EVENTS_ROLLOVER_CHECK_INTERVAL(
+
+  HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL(
       "dwhassessment.hook.rollover-interval",
-      "Frequency at which the file rollover check is triggered, e.g. 600s.");
+      "Frequency at which the file rollover should be performed, e.g. 600s. On day change rollover"
+          + " happens always."),
+
+  HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL(
+      "dwhassessment.hook.rollover-eligibility-check-interval",
+      "Frequency at which the file rollover eligibility check is triggered in the background, e.g."
+          + " 600s.");
 
   private final String confName;
   private final String description;
