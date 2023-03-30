@@ -70,7 +70,12 @@ public class DatePartitionedRecordsWriterFactory {
   private final Duration rolloverInterval;
 
   public DatePartitionedRecordsWriterFactory(
-      Path baseDir, Configuration conf, Schema schema, Clock clock, String loggerId, Duration rolloverInterval)
+      Path baseDir,
+      Configuration conf,
+      Schema schema,
+      Clock clock,
+      String loggerId,
+      Duration rolloverInterval)
       throws IOException {
     this.conf = conf;
     this.createDirIfNotExists(baseDir);
@@ -140,7 +145,10 @@ public class DatePartitionedRecordsWriterFactory {
     return ISO_LOCAL_DATE.format(date);
   }
 
-  /** Next rollover time is 30 minutes after or at the beginning of the next day, depending on what will happen earlier. */
+  /**
+   * Next rollover time is at next configured interval or at the beginning of the next day,
+   * depending on what will happen earlier.
+   */
   private Instant calculateNextRolloverTime() {
     Instant currentInstant = clock.instant();
     Instant nextRollover = currentInstant.plus(rolloverInterval).truncatedTo(ChronoUnit.MINUTES);
