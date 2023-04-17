@@ -87,6 +87,7 @@ public class EventRecordConstructor {
 
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", plan.getQueryId())
+        .set("QueryText", hookContext.getQueryState().getCommandType())
         .set("QueryText", plan.getQueryStr())
         .set("EventType", EventType.QUERY_SUBMITTED.name())
         .set("StartTime", plan.getQueryStartTime())

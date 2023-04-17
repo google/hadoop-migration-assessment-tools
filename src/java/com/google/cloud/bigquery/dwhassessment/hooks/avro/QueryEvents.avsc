@@ -11,6 +11,14 @@
       "default": null
     },
     {
+      "name": "QueryType",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
       "name": "QueryText",
       "type": [
         "null",
