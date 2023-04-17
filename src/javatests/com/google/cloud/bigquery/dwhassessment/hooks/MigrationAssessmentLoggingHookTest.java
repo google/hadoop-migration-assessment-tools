@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig;
+import com.google.cloud.bigquery.dwhassessment.hooks.test_utils.TestUtils;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.time.Clock;
@@ -44,6 +45,7 @@ import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,99 +66,41 @@ public class MigrationAssessmentLoggingHookTest {
 
   @Mock Hive hiveMock;
 
-  private QueryState queryState;
   private HiveConf conf;
   private String tmpFolder;
-
+  private HookContext hookContext;
+  private QueryState queryState;
 
   @Before
-  public void setup() throws IOException {
-    conf = new HiveConf();
+  public void setup() throws Exception {
+    TestUtils utils = new TestUtils(hiveMock);
+    conf = utils.getConf();
+    queryState = utils.getQueryState();
+    hookContext = utils.getHookContext();
+
     tmpFolder = folder.newFolder().getAbsolutePath();
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
-    queryState = new QueryState(conf);
+  }
+
+  @After
+  public void tearDown() {
+    queryState.setCommandType(null);
   }
 
   @Test
   public void run_success() throws Exception {
-    String queryText = "SELECT * FROM employees";
-    String queryId = "hive_query_id_999";
-    QueryPlan queryPlan = createQueryPlan(queryText, queryId);
-    HookContext context = createContext(queryPlan);
-    context.setHookType(HookType.PRE_EXEC_HOOK);
+    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+    queryState.setCommandType(HiveOperation.QUERY);
     MigrationAssessmentLoggingHook hook = new MigrationAssessmentLoggingHook();
 
     // Act
-    hook.run(context);
+    hook.run(hookContext);
     EventLogger.getInstance(conf, Clock.systemUTC()).shutdown();
 
     // Assert
-    List<GenericRecord> records = readOutputRecords(conf, tmpFolder);
-    assertThat(records)
-        .containsExactly(
-            new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
-                .set("QueryId", queryId)
-                .set("QueryText", queryText)
-                .set("EventType", "QUERY_SUBMITTED")
-                .set("ExecutionMode", "NONE")
-                .set("StartTime", 1234L)
-                .set("RequestUser", "test_user")
-                .set("UserName", System.getProperty("user.name"))
-                .set("SessionId", "test_session_id")
-                .set("IsTez", false)
-                .set("IsMapReduce", false)
-                .set("InvokerInfo", "test_session_id")
-                .set("ThreadName", "test_thread_id")
-                .set("HookVersion", "1.0")
-                .set("ClientIpAddress", "192.168.10.10")
-                .set("HiveAddress", "hive_addr")
-                .set("HiveInstanceType", "HS2")
-                .set("OperationId", "test_op_id")
-                .set("MapReduceCountersObject", "[]")
-                .set("TezCountersObject", "[]")
-                .build());
+    List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
+    assertThat(records).containsExactly(TestUtils.getPreExecRecord());
   }
 
-  private HookContext createContext(QueryPlan queryPlan) throws Exception {
-    PerfLogger perfLogger = PerfLogger.getPerfLogger(conf, true);
-    return new HookContext(
-        queryPlan,
-        queryState,
-        null,
-        "test_user",
-        "192.168.10.10",
-        "hive_addr",
-        "test_op_id",
-        "test_session_id",
-        "test_thread_id",
-        true,
-        perfLogger);
-  }
 
-  private QueryPlan createQueryPlan(String queryText, String queryId) throws Exception {
-    BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(queryState, hiveMock);
-
-    return new QueryPlan(queryText, sem, 1234L, queryId, HiveOperation.QUERY, null);
-  }
-
-  public static List<GenericRecord> readOutputRecords(HiveConf conf, String tmpFolder)
-      throws IOException {
-    Path path = new Path(tmpFolder);
-    FileSystem fs = path.getFileSystem(conf);
-
-    ImmutableList<FileStatus> directories = ImmutableList.copyOf(fs.listStatus(path));
-    assertThat(directories).hasSize(1);
-    ImmutableList<FileStatus> files =  ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
-    assertThat(files).hasSize(1);
-
-    FSDataInputStream inputStream = fs.open(files.get(0).getPath());
-
-    DatumReader<GenericRecord> reader = new GenericDatumReader<>(QUERY_EVENT_SCHEMA);
-
-    try (DataFileStream<GenericRecord> dataFileReader = new DataFileStream<>(inputStream, reader)) {
-      ArrayList<GenericRecord> records = new ArrayList<>();
-      dataFileReader.forEach(records::add);
-      return records;
-    }
-  }
 }

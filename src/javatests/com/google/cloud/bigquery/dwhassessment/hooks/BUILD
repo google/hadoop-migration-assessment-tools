@@ -21,6 +21,7 @@ java_library(
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/avro",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
+        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/test_utils",
         "@maven_tests//:com_google_guava_guava",
         "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:junit_junit",
