@@ -24,6 +24,7 @@ import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static org.apache.commons.lang.ObjectUtils.min;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,10 +32,11 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import org.apache.avro.Schema;
-import org.apache.commons.lang.ObjectUtils;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.reflect.Nullable;
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -72,6 +74,9 @@ public class DatePartitionedRecordsWriterFactory {
   private final String loggerId;
   private final Duration rolloverInterval;
 
+  // Is constructed lazily on the first write call
+  @Nullable private RecordsWriter currentWriter;
+
   public DatePartitionedRecordsWriterFactory(
       Path baseDir,
       Configuration conf,
@@ -90,45 +95,63 @@ public class DatePartitionedRecordsWriterFactory {
     rolloverTime = calculateNextRolloverTime();
   }
 
-  public static LocalDate getDateFromDir(String dirName) {
+  /** Attempts to write an event to a writer. Creates a writer if it is null. */
+  public void write(GenericRecord event) throws UncheckedIOException {
+    maybeRolloverWriter();
+
     try {
-      return LocalDate.parse(dirName, ISO_LOCAL_DATE);
-    } catch (DateTimeParseException e) {
-      throw new IllegalArgumentException("Invalid directory: " + dirName, e);
+      if (currentWriter == null) {
+        currentWriter = createWriter();
+      }
+      currentWriter.writeMessage(event);
+      currentWriter.flush();
+    } catch (IOException e) {
+      // Something wrong with writer – close and reopen.
+      IOUtils.closeQuietly(currentWriter);
+      currentWriter = null;
+
+      throw new UncheckedIOException("Exception during writing query event", e);
     }
+  }
+
+  public void maybeRolloverWriter() {
+    if (shouldRollover()) {
+      close();
+
+      rolloverTime = calculateNextRolloverTime();
+
+      LOG.info(
+          "Rolling over file for logger ID '{}'. Next rollover is expected at '{}'",
+          loggerId,
+          ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
+    } else {
+      LOG.debug(
+          "Performed rollover check for logger ID '{}'. Expected rollover time is '{}'",
+          loggerId,
+          rolloverTime);
+    }
+  }
+
+  public void close() {
+    IOUtils.closeQuietly(currentWriter);
+    currentWriter = null;
   }
 
   /**
    * Creates new writer for the current date. Each new invocation increments the {@code
    * logFileCount}.
    */
-  public RecordsWriter createWriter() throws IOException {
+  private RecordsWriter createWriter() throws IOException {
     String fileName = constructFileName();
     Path filePath = getPathForDate(getCurrentDate(), fileName);
+
+    LOG.info("Creating new query events writer for file name {}", filePath.getName());
+
     return new RecordsWriter(conf, filePath, schema);
   }
 
-  public boolean shouldRollover() {
+  private boolean shouldRollover() {
     return clock.instant().isAfter(rolloverTime);
-  }
-
-  public boolean maybeUpdateRolloverTime() {
-    if (!shouldRollover()) {
-      LOG.debug(
-          "Trying to update rollover time, but the current time is not after rollover time: {},"
-              + " ignoring call",
-          rolloverTime);
-      return false;
-    }
-
-    rolloverTime = calculateNextRolloverTime();
-
-    LOG.info(
-        "Rolling over file for logger ID '{}'. Next rollover is expected at '{}'",
-        loggerId,
-        ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
-
-    return true;
   }
 
   private void createDirIfNotExists(Path path) throws IOException {

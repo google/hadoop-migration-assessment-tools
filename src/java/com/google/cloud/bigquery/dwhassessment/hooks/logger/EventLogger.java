@@ -24,12 +24,12 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookCo
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
+import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.commons.compress.utils.IOUtils;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -64,8 +64,6 @@ public class EventLogger {
   private final ScheduledThreadPoolExecutor logWriter;
   private final int queueCapacity;
   private final String loggerId;
-
-  private RecordsWriter writer;
 
   // Singleton using DCL.
   private static volatile EventLogger instance;
@@ -120,6 +118,9 @@ public class EventLogger {
         rolloverEligibilityIntervalMilliseconds,
         rolloverEligibilityIntervalMilliseconds,
         TimeUnit.MILLISECONDS);
+
+    LOG.info(
+        "Logger successfully started, waiting for query events. Log directory is '{}'", baseDir);
   }
 
   public void handle(HookContext hookContext) {
@@ -180,43 +181,23 @@ public class EventLogger {
   }
 
   private synchronized void handleTick() {
-    try {
-      maybeRolloverWriterForDay();
-    } catch (IOException e) {
-      LOG.error("Got IOException while trying to rollover", e);
-    }
-  }
-
-  private void maybeRolloverWriterForDay() throws IOException {
-    if (writer == null || recordsWriterFactory.shouldRollover()) {
-      if (writer != null) {
-        IOUtils.closeQuietly(writer);
-        writer = null;
-      }
-
-      writer = recordsWriterFactory.createWriter();
-      recordsWriterFactory.maybeUpdateRolloverTime();
-    }
+    recordsWriterFactory.maybeRolloverWriter();
   }
 
   private synchronized void writeEventWithRetries(GenericRecord event) {
     for (int retryCount = 0; retryCount <= MAX_RETRIES; ++retryCount) {
       try {
-        maybeRolloverWriterForDay();
-        writer.writeMessage(event);
-        writer.flush();
+        recordsWriterFactory.write(event);
         return;
-      } catch (IOException e) {
-        // Something wrong with writer – close and reopen.
-        IOUtils.closeQuietly(writer);
-        writer = null;
+      } catch (UncheckedIOException e) {
         reportRetryState(event, retryCount, e);
         waitForRetry(retryCount);
       }
     }
   }
 
-  private void reportRetryState(GenericRecord event, int retryCount, IOException writeException) {
+  private void reportRetryState(
+      GenericRecord event, int retryCount, UncheckedIOException writeException) {
     if (retryCount < MAX_RETRIES) {
       LOG.warn(
           "Error writing proto message for query {}, eventType: {}, retryCount: {}",
@@ -254,6 +235,6 @@ public class EventLogger {
         LOG.warn("Got interrupted exception while waiting for events to be flushed", e);
       }
     }
-    IOUtils.closeQuietly(writer);
+    recordsWriterFactory.close();
   }
 }
