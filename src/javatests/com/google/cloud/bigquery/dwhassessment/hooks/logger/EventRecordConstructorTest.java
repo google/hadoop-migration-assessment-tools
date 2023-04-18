@@ -114,7 +114,7 @@ public class EventRecordConstructorTest {
 
   @DataPoints("AllHookTypes")
   public static final ImmutableList<HookType> ALL_HOOK_TYPES =
-      ImmutableList.of(/*HookType.PRE_EXEC_HOOK, HookType.ON_FAILURE_HOOK,*/ HookType.POST_EXEC_HOOK);
+      ImmutableList.of(HookType.PRE_EXEC_HOOK, HookType.ON_FAILURE_HOOK, HookType.POST_EXEC_HOOK);
 
   @Theory
   public void allHooks_shouldStoreMapReduceTasksCounters(
