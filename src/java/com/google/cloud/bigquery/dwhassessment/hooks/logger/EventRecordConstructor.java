@@ -37,6 +37,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
 import org.apache.hadoop.hive.ql.QueryPlan;
+import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
@@ -87,6 +88,7 @@ public class EventRecordConstructor {
 
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", plan.getQueryId())
+        .set("QueryType", hookContext.getQueryState().getCommandType())
         .set("QueryText", plan.getQueryStr())
         .set("EventType", EventType.QUERY_SUBMITTED.name())
         .set("StartTime", plan.getQueryStartTime())

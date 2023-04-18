@@ -99,6 +99,7 @@ public final class TestUtils {
   public static Record createPreExecRecord() {
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", TestUtils.DEFAULT_QUERY_ID)
+        .set("QueryType", "QUERY")
         .set("QueryText", TestUtils.DEFAULT_QUERY_TEXT)
         .set("EventType", "QUERY_SUBMITTED")
         .set("ExecutionMode", "NONE")
