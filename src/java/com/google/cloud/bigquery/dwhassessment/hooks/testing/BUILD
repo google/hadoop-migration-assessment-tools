@@ -16,14 +16,15 @@ load("@rules_java//java:defs.bzl", "java_library")
 package(default_visibility = ["//src:internal"])
 
 java_library(
-    name = "test_utils",
+    name = "testing",
     srcs = glob(["*.java"]),
+    testonly = 1,
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
-        "@maven//:com_google_guava_guava",
         "@maven//:org_apache_avro_avro",
         "@maven//:org_apache_hadoop_hadoop_common",
         "@maven//:org_apache_hive_hive_exec_2_2_0",
+        "@maven_tests//:com_google_guava_guava",
         "@maven_tests//:com_google_truth_truth",
     ],
 )

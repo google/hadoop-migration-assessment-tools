@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.bigquery.dwhassessment.hooks.test_utils;
+package com.google.cloud.bigquery.dwhassessment.hooks.testing;
 
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.common.truth.Truth.assertThat;
@@ -44,6 +44,7 @@ import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 
 /** Common utils for testing */
@@ -53,21 +54,32 @@ public final class TestUtils {
   public static final String DEFAULT_QUERY_TEXT = "SELECT * FROM employees";
   public static final String DEFAULT_QUERY_ID = "hive_query_id_999";
 
-  private final HiveConf conf;
-  private final QueryState queryState;
-  private final QueryPlan queryPlan;
-  private final HookContext hookContext;
+  private TestUtils() {
+  }
 
-  public TestUtils(Hive hiveMock) throws Exception {
-    conf = new HiveConf();
-    queryState = new QueryState(conf);
-    BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(queryState, hiveMock);
-    queryPlan = new QueryPlan(DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID,
+  public static QueryState createDefaultQueryState() {
+    return new QueryState(new HiveConf());
+  }
+
+  public static QueryPlan createDefaultQueryPlan(Hive hive, QueryState state)
+      throws SemanticException {
+    BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(state, hive);
+    return new QueryPlan(DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID,
         HiveOperation.QUERY, null);
-    PerfLogger perfLogger = PerfLogger.getPerfLogger(conf, true);
-    hookContext = new HookContext(
-        queryPlan,
-        queryState,
+  }
+
+  public static HookContext createDefaultHookContext(Hive hive, QueryState state)
+      throws Exception {
+    QueryPlan plan = createDefaultQueryPlan(hive, state);
+    return createDefaultHookContext(plan, state);
+  }
+
+  public static HookContext createDefaultHookContext(QueryPlan plan, QueryState state)
+      throws Exception {
+    PerfLogger perfLogger = PerfLogger.getPerfLogger(state.getConf(), true);
+    return new HookContext(
+        plan,
+        state,
         null,
         "test_user",
         "192.168.10.10",
@@ -79,27 +91,11 @@ public final class TestUtils {
         perfLogger);
   }
 
-  public QueryState getQueryState() {
-    return queryState;
-  }
-
-  public QueryPlan getQueryPlan() {
-    return queryPlan;
-  }
-
-  public HookContext getHookContext() {
-    return hookContext;
-  }
-
-  public HiveConf getConf() {
-    return conf;
-  }
-
-  public static Clock getFixedClock() {
+  public static Clock createFixedClock() {
     return Clock.fixed(Instant.ofEpochMilli(QUERY_END_TIME), ZoneOffset.UTC);
   }
 
-  public static Record getPreExecRecord() {
+  public static Record createPreExecRecord() {
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", TestUtils.DEFAULT_QUERY_ID)
         .set("QueryText", TestUtils.DEFAULT_QUERY_TEXT)
@@ -123,7 +119,7 @@ public final class TestUtils {
         .build();
   }
 
-  public static Record getPostExecRecord(String status) {
+  public static Record createPostExecRecord(String status) {
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", TestUtils.DEFAULT_QUERY_ID)
         .set("EventType", "QUERY_COMPLETED")

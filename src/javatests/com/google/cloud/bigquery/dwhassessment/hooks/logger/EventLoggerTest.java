@@ -16,30 +16,17 @@
 
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.bigquery.dwhassessment.hooks.test_utils.TestUtils;
-import com.google.common.collect.ImmutableList;
-import java.io.IOException;
-import java.util.ArrayList;
+import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import java.util.List;
-import org.apache.avro.file.DataFileStream;
-import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.avro.io.DatumReader;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,20 +54,14 @@ public class EventLoggerTest {
 
   @Before
   public void setup() throws Exception {
-    TestUtils utils = new TestUtils(hiveMock);
-    conf = utils.getConf();
-    queryState = utils.getQueryState();
-    hookContext = utils.getHookContext();
-
+    conf = new HiveConf();
     tmpFolder = folder.newFolder().getAbsolutePath();
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
 
-    logger = new EventLogger(conf, TestUtils.getFixedClock());
-  }
+    queryState = new QueryState(conf);
+    hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
 
-  @After
-  public void tearDown() {
-    queryState.setCommandType(null);
+    logger = new EventLogger(conf, TestUtils.createFixedClock());
   }
 
   @Test
@@ -94,7 +75,7 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.getPreExecRecord());
+    assertThat(records).containsExactly(TestUtils.createPreExecRecord());
   }
 
   @Test
@@ -107,7 +88,7 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.getPostExecRecord("SUCCESS"));
+    assertThat(records).containsExactly(TestUtils.createPostExecRecord("SUCCESS"));
   }
 
   @Test
@@ -120,6 +101,6 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.getPostExecRecord("FAIL"));;
+    assertThat(records).containsExactly(TestUtils.createPostExecRecord("FAIL"));;
   }
 }

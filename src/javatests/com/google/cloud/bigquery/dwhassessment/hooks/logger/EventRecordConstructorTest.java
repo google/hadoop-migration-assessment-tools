@@ -16,23 +16,20 @@
 
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.bigquery.dwhassessment.hooks.test_utils.TestUtils;
+import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
-import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.exec.Task;
@@ -45,7 +42,6 @@ import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,17 +71,11 @@ public class EventRecordConstructorTest {
 
   @Before
   public void setup() throws Exception {
-    TestUtils utils = new TestUtils(hiveMock);
-    queryState = utils.getQueryState();
-    queryPlan = utils.getQueryPlan();
-    hookContext = utils.getHookContext();
+    queryState = TestUtils.createDefaultQueryState();
+    queryPlan = TestUtils.createDefaultQueryPlan(hiveMock, queryState);
+    hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
 
-    eventRecordConstructor = new EventRecordConstructor(TestUtils.getFixedClock());
-  }
-
-  @After
-  public void tearDown() {
-    queryState.setCommandType(null);
+    eventRecordConstructor = new EventRecordConstructor(TestUtils.createFixedClock());
   }
 
   @Test
@@ -97,7 +87,7 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record).hasValue(TestUtils.getPreExecRecord());
+    assertThat(record).hasValue(TestUtils.createPreExecRecord());
   }
 
   @Test
@@ -108,7 +98,7 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record).hasValue(TestUtils.getPostExecRecord("SUCCESS"));
+    assertThat(record).hasValue(TestUtils.createPostExecRecord("SUCCESS"));
   }
 
   @Test
@@ -119,7 +109,7 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record).hasValue(TestUtils.getPostExecRecord("FAIL"));
+    assertThat(record).hasValue(TestUtils.createPostExecRecord("FAIL"));
   }
 
   @DataPoints("AllHookTypes")
