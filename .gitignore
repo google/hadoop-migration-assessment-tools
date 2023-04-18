@@ -3,3 +3,4 @@
 *.sw[a-z]
 bazel-*
 .DS_Store
+*.iml

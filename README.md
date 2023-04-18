@@ -34,3 +34,12 @@ bazel build //dist:all
 ```
 
 Zip files will be available under `bazel-bin/dist` directory.
+
+## Testing
+
+Run all tests:
+
+```
+bazel test //...
+```
+
