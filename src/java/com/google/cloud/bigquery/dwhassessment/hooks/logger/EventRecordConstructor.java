@@ -15,8 +15,8 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.MR_QUEUE_NAME;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.TEZ_QUEUE_NAME;
+import static com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig.MR_QUEUE_NAME;
+import static com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig.TEZ_QUEUE_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.HOOK_VERSION;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
@@ -32,6 +32,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.EventStatus;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.EventType;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.ExecutionMode;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;

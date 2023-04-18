@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.bigquery.dwhassessment.hooks.logger;
+package com.google.cloud.bigquery.dwhassessment.hooks.utils;
 
-/** Completed query event status. */
-public enum EventStatus {
-  SUCCESS,
-  FAIL,
+/** Query event type, captured by hook. */
+public enum EventType {
+  QUERY_SUBMITTED,
+  QUERY_COMPLETED,
 }
+
+

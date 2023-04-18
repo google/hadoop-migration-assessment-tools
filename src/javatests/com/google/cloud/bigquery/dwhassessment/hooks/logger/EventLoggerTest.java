@@ -20,6 +20,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import java.util.List;
+
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.EventStatus;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.QueryState;
@@ -101,6 +104,6 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPostExecRecord(EventStatus.FAIL));;
+    assertThat(records).containsExactly(TestUtils.createPostExecRecord(EventStatus.FAIL));
   }
 }

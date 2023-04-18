@@ -16,10 +16,10 @@
 
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_QUEUE_CAPACITY;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
+import static com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH;
+import static com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig.HIVE_QUERY_EVENTS_QUEUE_CAPACITY;
+import static com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL;
+import static com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static java.util.concurrent.TimeUnit.SECONDS;
 

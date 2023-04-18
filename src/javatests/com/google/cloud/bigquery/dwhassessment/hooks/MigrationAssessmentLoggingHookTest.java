@@ -18,7 +18,7 @@ package com.google.cloud.bigquery.dwhassessment.hooks;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
-import com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.LoggerVarsConfig;
 import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import java.time.Clock;
 import java.util.List;

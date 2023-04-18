@@ -13,12 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.bigquery.dwhassessment.hooks.logger;
+package com.google.cloud.bigquery.dwhassessment.hooks.utils;
 
-/** Query event type, captured by hook. */
-public enum EventType {
-  QUERY_SUBMITTED,
-  QUERY_COMPLETED,
+/**
+ * Query execution mode.
+ *
+ * <p>Equal to Apache Hive HiveProtoLoggingHook.ExecutionMode enum
+ */
+public enum ExecutionMode {
+  MR,
+  TEZ,
+  LLAP,
+  NONE
 }
-
-

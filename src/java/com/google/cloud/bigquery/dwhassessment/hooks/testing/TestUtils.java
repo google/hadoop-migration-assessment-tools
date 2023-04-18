@@ -19,7 +19,7 @@ package com.google.cloud.bigquery.dwhassessment.hooks.testing;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventStatus;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.EventStatus;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.time.Clock;

@@ -17,14 +17,15 @@ package(default_visibility = ["//src:internal"])
 
 java_library(
     name = "testing",
-    srcs = glob(["*.java"]),
     testonly = 1,
+    srcs = glob(["*.java"]),
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
+        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/utils",
+        "@maven_tests//:com_google_guava_guava",
+        "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:org_apache_avro_avro",
         "@maven_tests//:org_apache_hadoop_hadoop_common",
         "@maven_tests//:org_apache_hive_hive_exec_2_2_0",
-        "@maven_tests//:com_google_guava_guava",
-        "@maven_tests//:com_google_truth_truth",
     ],
 )

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.EventStatus;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
