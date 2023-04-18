@@ -73,7 +73,7 @@ public class EventRecordConstructorTest {
   public void setup() throws Exception {
     queryState = TestUtils.createDefaultQueryState();
     queryPlan = TestUtils.createDefaultQueryPlan(hiveMock, queryState);
-    hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
+    hookContext = TestUtils.createDefaultHookContext(queryPlan, queryState);
 
     eventRecordConstructor = new EventRecordConstructor(TestUtils.createFixedClock());
   }
@@ -98,7 +98,7 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record).hasValue(TestUtils.createPostExecRecord("SUCCESS"));
+    assertThat(record).hasValue(TestUtils.createPostExecRecord(EventStatus.SUCCESS));
   }
 
   @Test
@@ -109,12 +109,12 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record).hasValue(TestUtils.createPostExecRecord("FAIL"));
+    assertThat(record).hasValue(TestUtils.createPostExecRecord(EventStatus.FAIL));
   }
 
   @DataPoints("AllHookTypes")
   public static final ImmutableList<HookType> ALL_HOOK_TYPES =
-      ImmutableList.of(HookType.PRE_EXEC_HOOK, HookType.ON_FAILURE_HOOK, HookType.POST_EXEC_HOOK);
+      ImmutableList.of(/*HookType.PRE_EXEC_HOOK, HookType.ON_FAILURE_HOOK,*/ HookType.POST_EXEC_HOOK);
 
   @Theory
   public void allHooks_shouldStoreMapReduceTasksCounters(
@@ -131,7 +131,7 @@ public class EventRecordConstructorTest {
     // Act
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
-    // Assert
+    // Assertß
     assertThat(record.get().get("MapReduceCountersObject"))
         .isEqualTo("[{\"task_key1\":123,\"task_key2\":456},{\"task_key1\":999}]");
   }

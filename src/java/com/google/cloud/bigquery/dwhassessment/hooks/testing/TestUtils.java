@@ -19,6 +19,7 @@ package com.google.cloud.bigquery.dwhassessment.hooks.testing;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventStatus;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.time.Clock;
@@ -119,7 +120,7 @@ public final class TestUtils {
         .build();
   }
 
-  public static Record createPostExecRecord(String status) {
+  public static Record createPostExecRecord(EventStatus status) {
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", TestUtils.DEFAULT_QUERY_ID)
         .set("EventType", "QUERY_COMPLETED")
@@ -127,7 +128,7 @@ public final class TestUtils {
         .set("RequestUser", "test_user")
         .set("UserName", System.getProperty("user.name"))
         .set("OperationId", "test_op_id")
-        .set("Status", status)
+        .set("Status", status.name())
         .set("PerfObject", "{}")
         .set("HookVersion", "1.0")
         .set("MapReduceCountersObject", "[]")

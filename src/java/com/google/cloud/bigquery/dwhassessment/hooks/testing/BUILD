@@ -21,9 +21,9 @@ java_library(
     testonly = 1,
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
-        "@maven//:org_apache_avro_avro",
-        "@maven//:org_apache_hadoop_hadoop_common",
-        "@maven//:org_apache_hive_hive_exec_2_2_0",
+        "@maven_tests//:org_apache_avro_avro",
+        "@maven_tests//:org_apache_hadoop_hadoop_common",
+        "@maven_tests//:org_apache_hive_hive_exec_2_2_0",
         "@maven_tests//:com_google_guava_guava",
         "@maven_tests//:com_google_truth_truth",
     ],
