@@ -23,7 +23,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.IdGenerator;
 import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Duration;

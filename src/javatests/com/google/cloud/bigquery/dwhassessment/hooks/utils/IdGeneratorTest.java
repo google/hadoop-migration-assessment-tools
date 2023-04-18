@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package com.google.cloud.bigquery.dwhassessment.hooks.logger.utils;
+package com.google.cloud.bigquery.dwhassessment.hooks.utils;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.cloud.bigquery.dwhassessment.hooks.utils.IdGenerator;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.bigquery.dwhassessment.hooks.logger.utils;
+package com.google.cloud.bigquery.dwhassessment.hooks.utils;
 
 import org.apache.commons.lang.RandomStringUtils;
 
