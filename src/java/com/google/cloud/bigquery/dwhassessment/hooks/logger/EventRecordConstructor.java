@@ -37,7 +37,6 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
 import org.apache.hadoop.hive.ql.QueryPlan;
-import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
@@ -109,8 +108,6 @@ public class EventRecordConstructor {
         .set("HiveAddress", getHiveInstanceAddress(hookContext))
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("LlapApplicationId", determineLlapId(conf, executionMode))
-        .set("MapReduceCountersObject", dumpMapReduceCounters(mrTasks))
-        .set("TezCountersObject", dumpTezCounters(tezTasks))
         .set("OperationId", hookContext.getOperationId())
         .build();
   }
@@ -122,32 +119,39 @@ public class EventRecordConstructor {
     List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
     List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
 
-    return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
-        .set("QueryId", plan.getQueryId())
-        .set("EventType", EventType.QUERY_COMPLETED.name())
-        .set("EndTime", clock.millis())
-        .set("UserName", getUser(hookContext))
-        .set("RequestUser", getRequestUser(hookContext))
-        .set("Status", status.name())
-        .set("ErrorMessage", hookContext.getErrorMessage())
-        .set("HookVersion", HOOK_VERSION)
-        .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
-        .set("MapReduceCountersObject", dumpMapReduceCounters(mrTasks))
-        .set("TezCountersObject", dumpTezCounters(tezTasks))
-        .set("OperationId", hookContext.getOperationId())
-        .build();
+    GenericRecordBuilder recordBuilder =
+        new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
+            .set("QueryId", plan.getQueryId())
+            .set("EventType", EventType.QUERY_COMPLETED.name())
+            .set("EndTime", clock.millis())
+            .set("UserName", getUser(hookContext))
+            .set("RequestUser", getRequestUser(hookContext))
+            .set("Status", status.name())
+            .set("ErrorMessage", hookContext.getErrorMessage())
+            .set("HookVersion", HOOK_VERSION)
+            .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
+            .set("OperationId", hookContext.getOperationId());
+
+    dumpMapReduceCounters(mrTasks)
+        .ifPresent(counters -> recordBuilder.set("MapReduceCountersObject", counters));
+    dumpTezCounters(tezTasks)
+        .ifPresent(counters -> recordBuilder.set("TezCountersObject", counters));
+
+    return recordBuilder.build();
   }
 
-  private static String dumpMapReduceCounters(List<ExecDriver> mrTasks) {
-    return new JSONArray(mrTasks.stream().map(ExecDriver::getCounters).collect(Collectors.toList()))
-        .toString();
+  private static Optional<String> dumpMapReduceCounters(List<ExecDriver> mrTasks) {
+    JSONArray counters =
+        new JSONArray(mrTasks.stream().map(ExecDriver::getCounters).collect(Collectors.toList()));
+
+    return counters.length() > 0 ? Optional.of(counters.toString()) : Optional.empty();
   }
 
   /**
    * Tez tasks counters is a deeply nested set of key - value pairs. This attempts to dump them as
    * is, preserving their original structure.
    */
-  private static String dumpTezCounters(List<TezTask> tezTasks) {
+  private static Optional<String> dumpTezCounters(List<TezTask> tezTasks) {
     JSONArray outerObj = new JSONArray();
 
     for (TezTask tezTask : tezTasks) {
@@ -173,7 +177,7 @@ public class EventRecordConstructor {
       outerObj.put(taskObj);
     }
 
-    return outerObj.toString();
+    return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
   }
 
   private static String dumpPerfData(PerfLogger perfLogger) {
