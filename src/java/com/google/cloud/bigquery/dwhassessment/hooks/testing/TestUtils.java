@@ -116,8 +116,6 @@ public final class TestUtils {
         .set("HiveAddress", "hive_addr")
         .set("HiveInstanceType", "HS2")
         .set("OperationId", "test_op_id")
-        .set("MapReduceCountersObject", "[]")
-        .set("TezCountersObject", "[]")
         .build();
   }
 
@@ -132,8 +130,6 @@ public final class TestUtils {
         .set("Status", status.name())
         .set("PerfObject", "{}")
         .set("HookVersion", "1.0")
-        .set("MapReduceCountersObject", "[]")
-        .set("TezCountersObject", "[]")
         .build();
   }
 

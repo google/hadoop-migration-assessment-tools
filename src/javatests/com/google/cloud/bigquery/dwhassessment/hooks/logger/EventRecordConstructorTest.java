@@ -112,13 +112,13 @@ public class EventRecordConstructorTest {
     assertThat(record).hasValue(TestUtils.createPostExecRecord(EventStatus.FAIL));
   }
 
-  @DataPoints("AllHookTypes")
-  public static final ImmutableList<HookType> ALL_HOOK_TYPES =
-      ImmutableList.of(HookType.PRE_EXEC_HOOK, HookType.ON_FAILURE_HOOK, HookType.POST_EXEC_HOOK);
+  @DataPoints("PostHookTypes")
+  public static final ImmutableList<HookType> POST_HOOK_TYPES =
+      ImmutableList.of(HookType.ON_FAILURE_HOOK, HookType.POST_EXEC_HOOK);
 
   @Theory
-  public void allHooks_shouldStoreMapReduceTasksCounters(
-      @FromDataPoints("AllHookTypes") HookType hookType) {
+  public void postHooks_shouldStoreMapReduceTasksCounters(
+      @FromDataPoints("PostHookTypes") HookType hookType) {
     hookContext.setHookType(hookType);
 
     ImmutableList<Task<? extends Serializable>> mrTasks =
@@ -131,14 +131,14 @@ public class EventRecordConstructorTest {
     // Act
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
-    // Assertß
+    // Assert
     assertThat(record.get().get("MapReduceCountersObject"))
         .isEqualTo("[{\"task_key1\":123,\"task_key2\":456},{\"task_key1\":999}]");
   }
 
   @Theory
-  public void allHooks_shouldStoreTezTasksCounters(
-      @FromDataPoints("AllHookTypes") HookType hookType) {
+  public void postHooks_shouldStoreTezTasksCounters(
+      @FromDataPoints("PostHookTypes") HookType hookType) {
     hookContext.setHookType(hookType);
 
     ImmutableList<Task<? extends Serializable>> tezTasks =
