@@ -235,6 +235,16 @@
         "string"
       ],
       "default": null
+    },
+    {
+      "name": "DatabaseNames",
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": []
     }
   ]
 }

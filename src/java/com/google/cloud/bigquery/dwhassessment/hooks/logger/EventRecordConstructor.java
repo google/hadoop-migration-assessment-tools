@@ -19,6 +19,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.TEZ_QUEUE_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.HOOK_VERSION;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
+import static org.apache.hadoop.hive.ql.hooks.Entity.Type.DATABASE;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
@@ -109,6 +110,7 @@ public class EventRecordConstructor {
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("LlapApplicationId", determineLlapId(conf, executionMode))
         .set("OperationId", hookContext.getOperationId())
+        .set("DatabaseNames", getDatabasesFromEntitySet(hookContext.getInputs()))
         .build();
   }
 
@@ -198,6 +200,16 @@ public class EventRecordConstructor {
       }
     }
     return tableNames;
+  }
+
+  private static List<String> getDatabasesFromEntitySet(Set<? extends Entity> entities) {
+    List<String> databaseNames = new ArrayList<>();
+    for (Entity entity : entities) {
+      if (entity.getType() == DATABASE) {
+        databaseNames.add(entity.getDatabase().getName());
+      }
+    }
+    return databaseNames;
   }
 
   private static String getUser(HookContext hookContext) {
