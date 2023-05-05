@@ -255,6 +255,14 @@
         }
       ],
       "default": []
+    },
+    {
+      "name": "Database",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
     }
   ]
 }

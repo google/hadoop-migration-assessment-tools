@@ -45,6 +45,7 @@ import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONObject;
@@ -113,6 +114,7 @@ public class EventRecordConstructor {
         .set("OperationId", hookContext.getOperationId())
         .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
         .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
+        .set("Database", SessionState.get().getCurrentDatabase())
         .build();
   }
 
