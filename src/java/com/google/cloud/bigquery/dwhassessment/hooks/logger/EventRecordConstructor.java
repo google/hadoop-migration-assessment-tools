@@ -28,6 +28,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -203,8 +204,8 @@ public class EventRecordConstructor {
     return tableNames;
   }
 
-  private static List<String> getDatabasesFromEntitySet(Set<? extends Entity> entities) {
-    List<String> databaseNames = new ArrayList<>();
+  private static Set<String> getDatabasesFromEntitySet(Set<? extends Entity> entities) {
+    Set<String> databaseNames = new HashSet<>();
     for (Entity entity : entities) {
       if (entity.getType() == DATABASE) {
         databaseNames.add(entity.getDatabase().getName());
