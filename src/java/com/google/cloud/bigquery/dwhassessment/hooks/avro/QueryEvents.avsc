@@ -255,6 +255,26 @@
         "string"
       ],
       "default": null
+    },
+    {
+      "name": "DatabasesRead",
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": []
+    },
+    {
+      "name": "DatabasesWritten",
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": []
     }
   ]
 }
