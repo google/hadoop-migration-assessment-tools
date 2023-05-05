@@ -110,7 +110,8 @@ public class EventRecordConstructor {
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("LlapApplicationId", determineLlapId(conf, executionMode))
         .set("OperationId", hookContext.getOperationId())
-        .set("DatabaseNames", getDatabasesFromEntitySet(hookContext.getInputs()))
+        .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
+        .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
         .build();
   }
 

@@ -237,7 +237,17 @@
       "default": null
     },
     {
-      "name": "DatabaseNames",
+      "name": "DatabasesRead",
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": []
+    },
+    {
+      "name": "DatabasesWritten",
       "type": [
         {
           "type": "array",
