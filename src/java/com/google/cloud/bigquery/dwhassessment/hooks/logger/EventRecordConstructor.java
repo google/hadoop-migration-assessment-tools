@@ -196,24 +196,24 @@ public class EventRecordConstructor {
     return perfObj.toString();
   }
 
-  private static List<String> getTablesFromEntitySet(Set<? extends Entity> entities) {
+  private static Set<String> getTablesFromEntitySet(Set<? extends Entity> entities) {
     Set<String> tableNames = new HashSet<>();
     for (Entity entity : entities) {
       if (entity.getType() == TABLE) {
         tableNames.add(entity.getTable().getCompleteName());
       }
     }
-    return new ArrayList<>(tableNames);
+    return tableNames;
   }
 
-  private static List<String> getPartitionsFromEntitySet(Set<? extends Entity> entities) {
+  private static Set<String> getPartitionsFromEntitySet(Set<? extends Entity> entities) {
     Set<String> partitionNames = new HashSet<>();
     for (Entity entity : entities) {
       if (entity.getType() == PARTITION) {
         partitionNames.add(entity.getPartition().getCompleteName());
       }
     }
-    return new ArrayList<>(partitionNames);
+    return partitionNames;
   }
 
   private static Set<String> getDatabasesFromEntitySet(Set<? extends Entity> entities) {
