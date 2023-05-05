@@ -207,7 +207,7 @@ public class EventRecordConstructor {
     Set<String> partitionNames = new HashSet<>();
     for (Entity entity : entities) {
       if (entity.getType() == PARTITION) {
-        partitionNames.add(entity.getPartition().getName());
+        partitionNames.add(entity.getPartition().getCompleteName());
       }
     }
     return new ArrayList<>(partitionNames);
