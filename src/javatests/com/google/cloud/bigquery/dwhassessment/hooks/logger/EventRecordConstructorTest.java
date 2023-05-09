@@ -75,7 +75,6 @@ public class EventRecordConstructorTest {
   private HookContext hookContext;
   private QueryState queryState;
   private QueryPlan queryPlan;
-
   private SessionState state;
 
   @Before
@@ -83,12 +82,9 @@ public class EventRecordConstructorTest {
     HiveConf conf = new HiveConf();
 
     queryState = new QueryState(conf);
+    state = TestUtils.createDefaultSessionState(conf);
     queryPlan = TestUtils.createDefaultQueryPlan(hiveMock, queryState);
     hookContext = TestUtils.createDefaultHookContext(queryPlan, queryState);
-
-    state = new SessionState(conf);
-    state.setMapRedStats(new HashMap<>());
-    SessionState.setCurrentSessionState(state);
 
     eventRecordConstructor = new EventRecordConstructor(TestUtils.createFixedClock());
   }
