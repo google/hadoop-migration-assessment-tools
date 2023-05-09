@@ -26,10 +26,13 @@ import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.exec.Task;
@@ -40,6 +43,8 @@ import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
 import org.junit.Before;
@@ -69,11 +74,19 @@ public class EventRecordConstructorTest {
   private QueryState queryState;
   private QueryPlan queryPlan;
 
+  private SessionState state;
+
   @Before
   public void setup() throws Exception {
-    queryState = TestUtils.createDefaultQueryState();
+    HiveConf conf = new HiveConf();
+
+    queryState = new QueryState(conf);
     queryPlan = TestUtils.createDefaultQueryPlan(hiveMock, queryState);
     hookContext = TestUtils.createDefaultHookContext(queryPlan, queryState);
+
+    state = new SessionState(conf);
+    state.setMapRedStats(new HashMap<>());
+    SessionState.setCurrentSessionState(state);
 
     eventRecordConstructor = new EventRecordConstructor(TestUtils.createFixedClock());
   }
@@ -118,22 +131,24 @@ public class EventRecordConstructorTest {
 
   @Theory
   public void postHooks_shouldStoreMapReduceTasksCounters(
-      @FromDataPoints("PostHookTypes") HookType hookType) {
+      @FromDataPoints("PostHookTypes") HookType hookType) throws ParseException {
     hookContext.setHookType(hookType);
 
-    ImmutableList<Task<? extends Serializable>> mrTasks =
-        ImmutableList.of(
-            createMapReduceTaskWithCounters(
-                "id1", ImmutableMap.of("task_key1", 123L, "task_key2", 456L)),
-            createMapReduceTaskWithCounters("id2", ImmutableMap.of("task_key1", 999L)));
-    queryPlan.setRootTasks(new ArrayList<>(mrTasks));
+    String countersString = "{(org.apache.hadoop.mapreduce.FileSystemCounter)(File System Counters)[(FILE_BYTES_READ)(FILE: Number of bytes read)(0)][(FILE_BYTES_WRITTEN)(FILE: Number of bytes written)(418993)][(FILE_READ_OPS)(FILE: Number of read operations)(0)][(FILE_LARGE_READ_OPS)(FILE: Number of large read operations)(0)][(FILE_WRITE_OPS)(FILE: Number of write operations)(0)][(HDFS_BYTES_READ)(HDFS: Number of bytes read)(21617)][(HDFS_BYTES_WRITTEN)(HDFS: Number of bytes written)(4461)][(HDFS_READ_OPS)(HDFS: Number of read operations)(8)][(HDFS_LARGE_READ_OPS)(HDFS: Number of large read operations)(0)][(HDFS_WRITE_OPS)(HDFS: Number of write operations)(2)]}{(org.apache.hadoop.mapreduce.JobCounter)(Job Counters )[(TOTAL_LAUNCHED_MAPS)(Launched map tasks)(1)][(RACK_LOCAL_MAPS)(Rack-local map tasks)(1)][(SLOTS_MILLIS_MAPS)(Total time spent by all maps in occupied slots \\(ms\\))(9501)][(SLOTS_MILLIS_REDUCES)(Total time spent by all reduces in occupied slots \\(ms\\))(0)][(MILLIS_MAPS)(Total time spent by all map tasks \\(ms\\))(3167)][(VCORES_MILLIS_MAPS)(Total vcore-milliseconds taken by all map tasks)(3167)][(MB_MILLIS_MAPS)(Total megabyte-milliseconds taken by all map tasks)(9729024)]}{(org.apache.hadoop.mapreduce.TaskCounter)(Map-Reduce Framework)[(MAP_INPUT_RECORDS)(Map input records)(15)][(MAP_OUTPUT_RECORDS)(Map output records)(0)][(SPLIT_RAW_BYTES)(Input split bytes)(270)][(SPILLED_RECORDS)(Spilled Records)(0)][(FAILED_SHUFFLE)(Failed Shuffles)(0)][(MERGED_MAP_OUTPUTS)(Merged Map outputs)(0)][(GC_TIME_MILLIS)(GC time elapsed \\(ms\\))(137)][(CPU_MILLISECONDS)(CPU time spent \\(ms\\))(3000)][(PHYSICAL_MEMORY_BYTES)(Physical memory \\(bytes\\) snapshot)(368377856)][(VIRTUAL_MEMORY_BYTES)(Virtual memory \\(bytes\\) snapshot)(4413640704)][(COMMITTED_HEAP_BYTES)(Total committed heap usage \\(bytes\\))(337641472)]}{(HIVE)(HIVE)[(CREATED_FILES)(CREATED_FILES)(1)][(DESERIALIZE_ERRORS)(DESERIALIZE_ERRORS)(0)][(FATAL_ERROR)(FATAL_ERROR)(0)][(RECORDS_IN)(RECORDS_IN)(14)][(RECORDS_OUT_0)(RECORDS_OUT_0)(10)]}{(org.apache.hadoop.mapreduce.lib.input.FileInputFormatCounter)(File Input Format Counters )[(BYTES_READ)(Bytes Read)(0)]}{(org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter)(File Output Format Counters )[(BYTES_WRITTEN)(Bytes Written)(0)]}";
+    Counters expectedCounters = Counters.fromEscapedCompactString(countersString);
+
+    MapRedStats stats = new MapRedStats(0, 0, 0L, true, "1");
+    stats.setCounters(expectedCounters);
+
+    state.getMapRedStats().put("Map Stage 1", stats);
 
     // Act
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
+    String countersReceived = record.get().get("MapReduceCountersObject").toString();
+
 
     // Assert
-    assertThat(record.get().get("MapReduceCountersObject"))
-        .isEqualTo("[{\"task_key1\":123,\"task_key2\":456},{\"task_key1\":999}]");
+    assertThat(Counters.fromEscapedCompactString(countersReceived)).isEqualTo(expectedCounters);
   }
 
   @Theory

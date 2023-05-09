@@ -28,6 +28,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
+import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
@@ -45,10 +47,12 @@ import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
-import org.json.JSONObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,9 +124,6 @@ public class EventRecordConstructor {
     QueryPlan plan = hookContext.getQueryPlan();
     LOG.info("Received post-hook notification for: {}", plan.getQueryId());
 
-    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
-
     GenericRecordBuilder recordBuilder =
         new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
             .set("QueryId", plan.getQueryId())
@@ -136,19 +137,21 @@ public class EventRecordConstructor {
             .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
             .set("OperationId", hookContext.getOperationId());
 
-    dumpMapReduceCounters(mrTasks)
+    dumpMapReduceCounters()
         .ifPresent(counters -> recordBuilder.set("MapReduceCountersObject", counters));
-    dumpTezCounters(tezTasks)
+    dumpTezCounters(Utilities.getTezTasks(plan.getRootTasks()))
         .ifPresent(counters -> recordBuilder.set("TezCountersObject", counters));
 
     return recordBuilder.build();
   }
 
-  private static Optional<String> dumpMapReduceCounters(List<ExecDriver> mrTasks) {
-    JSONArray counters =
-        new JSONArray(mrTasks.stream().map(ExecDriver::getCounters).collect(Collectors.toList()));
-
-    return counters.length() > 0 ? Optional.of(counters.toString()) : Optional.empty();
+  private static Optional<String> dumpMapReduceCounters() {
+    // TODO: Use org.apache.hadoop.mapreduce.Counters
+    Object[] countersArray = SessionState.get().getMapRedStats().values().stream()
+        .map(MapRedStats::getCounters)
+        .map(Counters::makeEscapedCompactString)
+        .toArray();
+    return Optional.of(countersArray).filter(array -> array.length > 0).map(Arrays::toString);
   }
 
   /**

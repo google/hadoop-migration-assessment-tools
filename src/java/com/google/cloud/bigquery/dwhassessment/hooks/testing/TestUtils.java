@@ -58,10 +58,6 @@ public final class TestUtils {
   private TestUtils() {
   }
 
-  public static QueryState createDefaultQueryState() {
-    return new QueryState(new HiveConf());
-  }
-
   public static QueryPlan createDefaultQueryPlan(Hive hive, QueryState state)
       throws SemanticException {
     BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(state, hive);

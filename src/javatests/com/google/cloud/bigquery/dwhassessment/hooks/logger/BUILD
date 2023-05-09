@@ -48,6 +48,7 @@ java_library(
         "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:junit_junit",
         "@maven_tests//:org_apache_hadoop_hadoop_common",
+        "@maven_tests//:org_apache_hadoop_hadoop_mapred",
         "@maven_tests//:org_apache_hadoop_hadoop_mapreduce_client_common",
         "@maven_tests//:org_apache_hadoop_hadoop_yarn_common",
         "@maven_tests//:org_apache_hive_hive_common",
