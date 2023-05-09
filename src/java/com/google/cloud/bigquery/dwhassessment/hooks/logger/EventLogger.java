@@ -24,24 +24,23 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookCo
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
-import org.apache.avro.generic.GenericRecord;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.io.IOException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
-import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hive.common.util.ShutdownHookManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

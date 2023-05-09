@@ -49,6 +49,7 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONArray;
@@ -145,13 +146,34 @@ public class EventRecordConstructor {
     return recordBuilder.build();
   }
 
+  /**
+   * Map red counters is a deeply nested set of key - value pairs. This attempts to dump them as
+   * is, preserving their original structure.
+   */
   private static Optional<String> dumpMapReduceCounters() {
+    JSONArray outerObj = new JSONArray();
+
     // TODO: Use org.apache.hadoop.mapreduce.Counters
-    Object[] countersArray = SessionState.get().getMapRedStats().values().stream()
-        .map(MapRedStats::getCounters)
-        .map(Counters::makeEscapedCompactString)
-        .toArray();
-    return Optional.of(countersArray).filter(array -> array.length > 0).map(Arrays::toString);
+    SessionState.get().getMapRedStats().values().stream().map(MapRedStats::getCounters).forEach(counters -> {
+      JSONArray groupObj = new JSONArray();
+
+      counters.forEach(
+          counterGroup -> {
+            JSONObject groupCounters =
+                new JSONObject(
+                    StreamSupport
+                        .stream(counterGroup.spliterator(), false)
+                        .collect(Collectors.toMap(Counters.Counter::getName, Counters.Counter::getValue)));
+            JSONObject counterGroupData =
+                new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
+
+            groupObj.put(counterGroupData);
+          });
+
+      outerObj.put(groupObj);
+    });
+
+    return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
   }
 
   /**

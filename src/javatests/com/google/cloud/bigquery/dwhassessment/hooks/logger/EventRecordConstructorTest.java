@@ -45,6 +45,8 @@ import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.Counters.Counter;
+import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
 import org.junit.Before;
@@ -130,25 +132,44 @@ public class EventRecordConstructorTest {
       ImmutableList.of(HookType.ON_FAILURE_HOOK, HookType.POST_EXEC_HOOK);
 
   @Theory
-  public void postHooks_shouldStoreMapReduceTasksCounters(
-      @FromDataPoints("PostHookTypes") HookType hookType) throws ParseException {
+  public void postHooks_shouldStoreMapReduceCounters(
+      @FromDataPoints("PostHookTypes") HookType hookType) {
     hookContext.setHookType(hookType);
 
-    String countersString = "{(org.apache.hadoop.mapreduce.FileSystemCounter)(File System Counters)[(FILE_BYTES_READ)(FILE: Number of bytes read)(0)][(FILE_BYTES_WRITTEN)(FILE: Number of bytes written)(418993)][(FILE_READ_OPS)(FILE: Number of read operations)(0)][(FILE_LARGE_READ_OPS)(FILE: Number of large read operations)(0)][(FILE_WRITE_OPS)(FILE: Number of write operations)(0)][(HDFS_BYTES_READ)(HDFS: Number of bytes read)(21617)][(HDFS_BYTES_WRITTEN)(HDFS: Number of bytes written)(4461)][(HDFS_READ_OPS)(HDFS: Number of read operations)(8)][(HDFS_LARGE_READ_OPS)(HDFS: Number of large read operations)(0)][(HDFS_WRITE_OPS)(HDFS: Number of write operations)(2)]}{(org.apache.hadoop.mapreduce.JobCounter)(Job Counters )[(TOTAL_LAUNCHED_MAPS)(Launched map tasks)(1)][(RACK_LOCAL_MAPS)(Rack-local map tasks)(1)][(SLOTS_MILLIS_MAPS)(Total time spent by all maps in occupied slots \\(ms\\))(9501)][(SLOTS_MILLIS_REDUCES)(Total time spent by all reduces in occupied slots \\(ms\\))(0)][(MILLIS_MAPS)(Total time spent by all map tasks \\(ms\\))(3167)][(VCORES_MILLIS_MAPS)(Total vcore-milliseconds taken by all map tasks)(3167)][(MB_MILLIS_MAPS)(Total megabyte-milliseconds taken by all map tasks)(9729024)]}{(org.apache.hadoop.mapreduce.TaskCounter)(Map-Reduce Framework)[(MAP_INPUT_RECORDS)(Map input records)(15)][(MAP_OUTPUT_RECORDS)(Map output records)(0)][(SPLIT_RAW_BYTES)(Input split bytes)(270)][(SPILLED_RECORDS)(Spilled Records)(0)][(FAILED_SHUFFLE)(Failed Shuffles)(0)][(MERGED_MAP_OUTPUTS)(Merged Map outputs)(0)][(GC_TIME_MILLIS)(GC time elapsed \\(ms\\))(137)][(CPU_MILLISECONDS)(CPU time spent \\(ms\\))(3000)][(PHYSICAL_MEMORY_BYTES)(Physical memory \\(bytes\\) snapshot)(368377856)][(VIRTUAL_MEMORY_BYTES)(Virtual memory \\(bytes\\) snapshot)(4413640704)][(COMMITTED_HEAP_BYTES)(Total committed heap usage \\(bytes\\))(337641472)]}{(HIVE)(HIVE)[(CREATED_FILES)(CREATED_FILES)(1)][(DESERIALIZE_ERRORS)(DESERIALIZE_ERRORS)(0)][(FATAL_ERROR)(FATAL_ERROR)(0)][(RECORDS_IN)(RECORDS_IN)(14)][(RECORDS_OUT_0)(RECORDS_OUT_0)(10)]}{(org.apache.hadoop.mapreduce.lib.input.FileInputFormatCounter)(File Input Format Counters )[(BYTES_READ)(Bytes Read)(0)]}{(org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter)(File Output Format Counters )[(BYTES_WRITTEN)(Bytes Written)(0)]}";
-    Counters expectedCounters = Counters.fromEscapedCompactString(countersString);
+    CountersHolder countersHolder = CountersHolder.builder()
+        .addGroup(
+            CountersGroupHolder.builder()
+                .setName("counters_group1")
+                .setCounters(ImmutableMap.of("metric_key1", 123L))
+                .build())
+        .addGroup(
+            CountersGroupHolder.builder()
+                .setName("counters_group2")
+                .setCounters(
+                    ImmutableMap.of(
+                        "metric_key1", 456L,
+                        "metric_key2", 789L))
+                .build())
+        .build();
 
-    MapRedStats stats = new MapRedStats(0, 0, 0L, true, "1");
+    Counters expectedCounters = createMapReduceCounters(countersHolder);
+
+    MapRedStats stats = new MapRedStats(/* numMap= */ 0,
+        /* numReduce= */ 0,
+        /* cpuMSec= */ 0L,
+        /* ifSuccess= */ true,
+        /* jobId= */ "1");
     stats.setCounters(expectedCounters);
 
     state.getMapRedStats().put("Map Stage 1", stats);
 
     // Act
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
-    String countersReceived = record.get().get("MapReduceCountersObject").toString();
-
 
     // Assert
-    assertThat(Counters.fromEscapedCompactString(countersReceived)).isEqualTo(expectedCounters);
+    assertThat(record.get().get("MapReduceCountersObject"))
+        .isEqualTo(
+            "[[{\"counters_group1\":{\"metric_key1\":123}},{\"counters_group2\":{\"metric_key1\":456,\"metric_key2\":789}}]]");
   }
 
   @Theory
@@ -161,14 +182,14 @@ public class EventRecordConstructorTest {
             createTezTaskWithNullCounters("id1"),
             createTezTaskWithCounters(
                 "id2",
-                TezTaskCounterHolder.builder()
+                CountersHolder.builder()
                     .addGroup(
-                        TezTaskCounterGroupHolder.builder()
+                        CountersGroupHolder.builder()
                             .setName("counters_group1")
                             .setCounters(ImmutableMap.of("task_key1", 123L))
                             .build())
                     .addGroup(
-                        TezTaskCounterGroupHolder.builder()
+                        CountersGroupHolder.builder()
                             .setName("counters_group2")
                             .setCounters(
                                 ImmutableMap.of(
@@ -187,15 +208,7 @@ public class EventRecordConstructorTest {
             "[[{\"counters_group1\":{\"task_key1\":123}},{\"counters_group2\":{\"task_key1\":456,\"task_key2\":789}}]]");
   }
 
-  private ExecDriver createMapReduceTaskWithCounters(
-      String id, ImmutableMap<String, Long> counters) {
-    ExecDriver task = new ExecDriver();
-    task.setId(id);
-    task.taskCounters = new HashMap<>(counters);
-    return task;
-  }
-
-  private TezTask createTezTaskWithCounters(String id, TezTaskCounterHolder counters) {
+  private TezTask createTezTaskWithCounters(String id, CountersHolder counters) {
     TezWork tezWork = mock(TezWork.class);
     when(tezWork.getLlapMode()).thenReturn(false);
 
@@ -220,6 +233,20 @@ public class EventRecordConstructorTest {
     return task;
   }
 
+  private Counters createMapReduceCounters(CountersHolder countersHolder) {
+    Counters counters = new Counters();
+
+    countersHolder.groups().forEach(group -> {
+      Group countersGroup = counters.getGroup(group.name());
+      group.counters().forEach((key, value) -> {
+        Counter counterForName = countersGroup.getCounterForName(key);
+        counterForName.setValue(value);
+      });
+    });
+
+    return counters;
+  }
+
   private TezTask createTezTaskWithNullCounters(String id) {
     TezWork tezWork = mock(TezWork.class);
     when(tezWork.getLlapMode()).thenReturn(false);
@@ -232,42 +259,42 @@ public class EventRecordConstructorTest {
     return task;
   }
 
-  /** Component that simplifies {@link TezCounters} setup. */
+  /** Component that simplifies {@link Counters} and {@link TezCounters} setup. */
   @AutoValue
-  abstract static class TezTaskCounterHolder {
-    abstract ImmutableList<TezTaskCounterGroupHolder> groups();
+  abstract static class CountersHolder {
+    abstract ImmutableList<CountersGroupHolder> groups();
 
     public static Builder builder() {
-      return new AutoValue_EventRecordConstructorTest_TezTaskCounterHolder.Builder();
+      return new AutoValue_EventRecordConstructorTest_CountersHolder.Builder();
     }
 
-    /** Builder for {@link TezTaskCounterHolder} */
+    /** Builder for {@link CountersHolder} */
     @AutoValue.Builder
     abstract static class Builder {
-      abstract ImmutableList.Builder<TezTaskCounterGroupHolder> groupsBuilder();
+      abstract ImmutableList.Builder<CountersGroupHolder> groupsBuilder();
 
-      public final Builder addGroup(TezTaskCounterGroupHolder value) {
+      public final Builder addGroup(CountersGroupHolder value) {
         groupsBuilder().add(value);
         return this;
       }
 
-      public abstract TezTaskCounterHolder build();
+      public abstract CountersHolder build();
     }
   }
 
-  /** Component that simplifies {@link CounterGroup} setup. */
+  /** Component that simplifies {@link Counters.Group} and {@link CounterGroup} setup. */
   @AutoValue
-  abstract static class TezTaskCounterGroupHolder {
+  abstract static class CountersGroupHolder {
 
     abstract String name();
 
     abstract ImmutableMap<String, Long> counters();
 
     public static Builder builder() {
-      return new AutoValue_EventRecordConstructorTest_TezTaskCounterGroupHolder.Builder();
+      return new AutoValue_EventRecordConstructorTest_CountersGroupHolder.Builder();
     }
 
-    /** Builder for {@link TezTaskCounterGroupHolder} */
+    /** Builder for {@link CountersGroupHolder} */
     @AutoValue.Builder
     abstract static class Builder {
 
@@ -275,7 +302,7 @@ public class EventRecordConstructorTest {
 
       public abstract Builder setCounters(ImmutableMap<String, Long> value);
 
-      public abstract TezTaskCounterGroupHolder build();
+      public abstract CountersGroupHolder build();
     }
   }
 
