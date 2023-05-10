@@ -30,10 +30,12 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -48,10 +50,9 @@ import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -151,24 +152,17 @@ public class EventRecordConstructor {
    * is, preserving their original structure.
    */
   private static Optional<String> dumpMapReduceCounters() {
-    JSONArray outerObj = new JSONArray();
-
     /*
      {@link org.apache.hadoop.mapred.Counters} is deprecated.
      If, for any reason, this becomes an issue in the future,
      use {@link org.apache.hadoop.mapreduce.Counters}
     */
-    SessionState.get().getMapRedStats().values().stream()
-        .map(MapRedStats::getCounters)
-        .forEach(counters -> {
-          CountersHolder<Counters.Counter, Counters.Group> holder = new CountersHolder<>(
-              counters, c -> c.getName(), c -> c.getValue(), Counters.Group::getDisplayName
-          );
+    Stream<Iterable<Group>> countersStream = SessionState.get()
+        .getMapRedStats().values().stream()
+        .map(MapRedStats::getCounters);
 
-          populateJsonArray(outerObj, holder);
-        });
-
-    return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
+    JSONArray array = generateJsonArray(countersStream, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
+    return array.length() > 0 ? Optional.of(array.toString()) : Optional.empty();
   }
 
   /**
@@ -176,55 +170,35 @@ public class EventRecordConstructor {
    * is, preserving their original structure.
    */
   private static Optional<String> dumpTezCounters(List<TezTask> tezTasks) {
+    JSONArray array = generateJsonArray(tezTasks.stream().map(TezTask::getTezCounters),
+        TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
+    return array.length() > 0 ? Optional.of(array.toString()) : Optional.empty();
+  }
+
+  private static <C, G extends Iterable<C>> JSONArray generateJsonArray(Stream<Iterable<G>> countersStream,
+      Function<C, String> nameFn, Function<C, Long> valueFn, Function<G, String> displayNameFn) {
     JSONArray outerObj = new JSONArray();
 
-    for (TezTask tezTask : tezTasks) {
-      TezCounters tezCounters = tezTask.getTezCounters();
-      if (tezCounters == null) {
-        continue;
-      }
-      CountersHolder<TezCounter, CounterGroup> holder = new CountersHolder<>(
-          tezCounters, TezCounter::getName, TezCounter::getValue, CounterGroup::getDisplayName);
+    countersStream
+        .filter(Objects::nonNull)
+        .forEach(counters -> {
+          JSONArray innerObj = new JSONArray();
+          counters.forEach(
+              counterGroup -> {
+                JSONObject groupCounters =
+                    new JSONObject(
+                        StreamSupport.stream(counterGroup.spliterator(), false)
+                            .collect(Collectors.toMap(nameFn, valueFn)));
+                JSONObject counterGroupData =
+                    new JSONObject().put(displayNameFn.apply(counterGroup), groupCounters);
 
-      populateJsonArray(outerObj, holder);
-    }
+                innerObj.put(counterGroupData);
+              });
 
-    return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
-  }
-
-  private static <C, G extends Iterable<C>> void populateJsonArray(JSONArray outerObj,
-      CountersHolder<C, G> holder) {
-    JSONArray innerObj = new JSONArray();
-    holder.iterable.forEach(
-        counterGroup -> {
-          JSONObject groupCounters =
-              new JSONObject(
-                  StreamSupport.stream(counterGroup.spliterator(), false)
-                      .collect(Collectors.toMap(holder.nameFn, holder.valueFn)));
-          JSONObject counterGroupData =
-              new JSONObject().put(holder.displayNameFn.apply(counterGroup), groupCounters);
-
-          innerObj.put(counterGroupData);
+          outerObj.put(innerObj);
         });
 
-    outerObj.put(innerObj);
-  }
-
-  private static class CountersHolder<C, G extends Iterable<C>> {
-    private final Iterable<G> iterable;
-    private final Function<C, String> nameFn;
-    private final Function<C, Long> valueFn;
-    private final Function<G, String> displayNameFn;
-
-    private CountersHolder(Iterable<G> iterable,
-        Function<C, String> nameFn,
-        Function<C, Long> valueFn,
-        Function<G, String> displayNameFn) {
-      this.iterable = iterable;
-      this.nameFn = nameFn;
-      this.valueFn = valueFn;
-      this.displayNameFn = displayNameFn;
-    }
+    return outerObj;
   }
 
   private static String dumpPerfData(PerfLogger perfLogger) {
