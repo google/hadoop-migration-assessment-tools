@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericRecord;
@@ -48,6 +49,7 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
+import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONArray;
@@ -158,48 +160,15 @@ public class EventRecordConstructor {
     */
     SessionState.get().getMapRedStats().values().stream()
         .map(MapRedStats::getCounters)
-        .forEach(counters -> populateJsonArray(outerObj, counters));
+        .forEach(counters -> {
+          CountersHolder<Counters.Counter, Counters.Group> holder = new CountersHolder<>(
+              counters, c -> c.getName(), c -> c.getValue(), Counters.Group::getDisplayName
+          );
+
+          populateJsonArray(outerObj, holder);
+        });
 
     return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
-  }
-
-  // TODO: merge the 2 `populateJsonArray` functions
-  private static void populateJsonArray(JSONArray outerObj, Counters counters) {
-    JSONArray innerObj = new JSONArray();
-    counters.forEach(
-        counterGroup -> {
-          JSONObject groupCounters =
-              new JSONObject(
-                  StreamSupport
-                      .stream(counterGroup.spliterator(), false)
-                      .collect(Collectors.toMap(
-                          counter -> counter.getName(),
-                          counter -> counter.getValue()
-                      )));
-          JSONObject counterGroupData =
-              new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
-
-          innerObj.put(counterGroupData);
-        });
-
-    outerObj.put(innerObj);
-  }
-
-  private static void populateJsonArray(JSONArray outerObj, TezCounters tezCounters) {
-    JSONArray innerObj = new JSONArray();
-    tezCounters.forEach(
-        counterGroup -> {
-          JSONObject groupCounters =
-              new JSONObject(
-                  StreamSupport.stream(counterGroup.spliterator(), false)
-                      .collect(Collectors.toMap(TezCounter::getName, TezCounter::getValue)));
-          JSONObject counterGroupData =
-              new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
-
-          innerObj.put(counterGroupData);
-        });
-
-    outerObj.put(innerObj);
   }
 
   /**
@@ -214,10 +183,48 @@ public class EventRecordConstructor {
       if (tezCounters == null) {
         continue;
       }
-      populateJsonArray(outerObj, tezCounters);
+      CountersHolder<TezCounter, CounterGroup> holder = new CountersHolder<>(
+          tezCounters, TezCounter::getName, TezCounter::getValue, CounterGroup::getDisplayName);
+
+      populateJsonArray(outerObj, holder);
     }
 
     return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
+  }
+
+  private static <C, G extends Iterable<C>> void populateJsonArray(JSONArray outerObj,
+      CountersHolder<C, G> holder) {
+    JSONArray innerObj = new JSONArray();
+    holder.iterable.forEach(
+        counterGroup -> {
+          JSONObject groupCounters =
+              new JSONObject(
+                  StreamSupport.stream(counterGroup.spliterator(), false)
+                      .collect(Collectors.toMap(holder.nameFn, holder.valueFn)));
+          JSONObject counterGroupData =
+              new JSONObject().put(holder.displayNameFn.apply(counterGroup), groupCounters);
+
+          innerObj.put(counterGroupData);
+        });
+
+    outerObj.put(innerObj);
+  }
+
+  private static class CountersHolder<C, G extends Iterable<C>> {
+    private final Iterable<G> iterable;
+    private final Function<C, String> nameFn;
+    private final Function<C, Long> valueFn;
+    private final Function<G, String> displayNameFn;
+
+    private CountersHolder(Iterable<G> iterable,
+        Function<C, String> nameFn,
+        Function<C, Long> valueFn,
+        Function<G, String> displayNameFn) {
+      this.iterable = iterable;
+      this.nameFn = nameFn;
+      this.valueFn = valueFn;
+      this.displayNameFn = displayNameFn;
+    }
   }
 
   private static String dumpPerfData(PerfLogger perfLogger) {
