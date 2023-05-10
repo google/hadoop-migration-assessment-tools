@@ -30,12 +30,10 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -50,9 +48,11 @@ import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
+import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -157,11 +157,11 @@ public class EventRecordConstructor {
      If, for any reason, this becomes an issue in the future,
      use {@link org.apache.hadoop.mapreduce.Counters}
     */
-    Stream<Iterable<Group>> countersStream = SessionState.get()
+    List<Counters> list = SessionState.get()
         .getMapRedStats().values().stream()
-        .map(MapRedStats::getCounters);
-
-    JSONArray array = generateJsonArray(countersStream, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
+        .map(MapRedStats::getCounters)
+        .collect(Collectors.toList());
+    JSONArray array = generateJsonArray(list, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
     return array.length() > 0 ? Optional.of(array.toString()) : Optional.empty();
   }
 
@@ -170,18 +170,21 @@ public class EventRecordConstructor {
    * is, preserving their original structure.
    */
   private static Optional<String> dumpTezCounters(List<TezTask> tezTasks) {
-    JSONArray array = generateJsonArray(tezTasks.stream().map(TezTask::getTezCounters),
-        TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
+    List<TezCounters> list = tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
+    JSONArray array = generateJsonArray(list, TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
     return array.length() > 0 ? Optional.of(array.toString()) : Optional.empty();
   }
 
-  private static <C, G extends Iterable<C>> JSONArray generateJsonArray(Stream<Iterable<G>> countersStream,
+  private static <C, G extends Iterable<C>> JSONArray generateJsonArray(List<? extends Iterable<G>> list,
       Function<C, String> nameFn, Function<C, Long> valueFn, Function<G, String> displayNameFn) {
     JSONArray outerObj = new JSONArray();
 
-    countersStream
-        .filter(Objects::nonNull)
+    list
         .forEach(counters -> {
+          if (counters == null) {
+            return;
+          }
+
           JSONArray innerObj = new JSONArray();
           counters.forEach(
               counterGroup -> {
