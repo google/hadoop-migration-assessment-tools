@@ -151,7 +151,11 @@ public class EventRecordConstructor {
   private static Optional<String> dumpMapReduceCounters() {
     JSONArray outerObj = new JSONArray();
 
-    // TODO: Use org.apache.hadoop.mapreduce.Counters
+    /*
+     {@link org.apache.hadoop.mapred.Counters} is deprecated.
+     If, for any reason, this becomes an issue in the future,
+     use {@link org.apache.hadoop.mapreduce.Counters}
+    */
     SessionState.get().getMapRedStats().values().stream()
         .map(MapRedStats::getCounters)
         .forEach(counters -> populateJsonArray(outerObj, counters));
