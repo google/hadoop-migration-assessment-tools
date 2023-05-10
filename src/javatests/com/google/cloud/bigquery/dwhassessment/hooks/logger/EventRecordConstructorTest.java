@@ -26,10 +26,13 @@ import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.exec.Task;
@@ -40,6 +43,10 @@ import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.Counters.Counter;
+import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
 import org.junit.Before;
@@ -68,10 +75,14 @@ public class EventRecordConstructorTest {
   private HookContext hookContext;
   private QueryState queryState;
   private QueryPlan queryPlan;
+  private SessionState state;
 
   @Before
   public void setup() throws Exception {
-    queryState = TestUtils.createDefaultQueryState();
+    HiveConf conf = new HiveConf();
+
+    queryState = new QueryState(conf);
+    state = TestUtils.createDefaultSessionState(conf);
     queryPlan = TestUtils.createDefaultQueryPlan(hiveMock, queryState);
     hookContext = TestUtils.createDefaultHookContext(queryPlan, queryState);
 
@@ -117,23 +128,44 @@ public class EventRecordConstructorTest {
       ImmutableList.of(HookType.ON_FAILURE_HOOK, HookType.POST_EXEC_HOOK);
 
   @Theory
-  public void postHooks_shouldStoreMapReduceTasksCounters(
+  public void postHooks_shouldStoreMapReduceCounters(
       @FromDataPoints("PostHookTypes") HookType hookType) {
     hookContext.setHookType(hookType);
 
-    ImmutableList<Task<? extends Serializable>> mrTasks =
-        ImmutableList.of(
-            createMapReduceTaskWithCounters(
-                "id1", ImmutableMap.of("task_key1", 123L, "task_key2", 456L)),
-            createMapReduceTaskWithCounters("id2", ImmutableMap.of("task_key1", 999L)));
-    queryPlan.setRootTasks(new ArrayList<>(mrTasks));
+    CountersHolder countersHolder = CountersHolder.builder()
+        .addGroup(
+            CountersGroupHolder.builder()
+                .setName("counters_group1")
+                .setCounters(ImmutableMap.of("metric_key1", 123L))
+                .build())
+        .addGroup(
+            CountersGroupHolder.builder()
+                .setName("counters_group2")
+                .setCounters(
+                    ImmutableMap.of(
+                        "metric_key1", 456L,
+                        "metric_key2", 789L))
+                .build())
+        .build();
+
+    Counters expectedCounters = createMapReduceCounters(countersHolder);
+
+    MapRedStats stats = new MapRedStats(/* numMap= */ 0,
+        /* numReduce= */ 0,
+        /* cpuMSec= */ 0L,
+        /* ifSuccess= */ true,
+        /* jobId= */ "1");
+    stats.setCounters(expectedCounters);
+
+    state.getMapRedStats().put("Map Stage 1", stats);
 
     // Act
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
     assertThat(record.get().get("MapReduceCountersObject"))
-        .isEqualTo("[{\"task_key1\":123,\"task_key2\":456},{\"task_key1\":999}]");
+        .isEqualTo(
+            "[[{\"counters_group1\":{\"metric_key1\":123}},{\"counters_group2\":{\"metric_key1\":456,\"metric_key2\":789}}]]");
   }
 
   @Theory
@@ -146,14 +178,14 @@ public class EventRecordConstructorTest {
             createTezTaskWithNullCounters("id1"),
             createTezTaskWithCounters(
                 "id2",
-                TezTaskCounterHolder.builder()
+                CountersHolder.builder()
                     .addGroup(
-                        TezTaskCounterGroupHolder.builder()
+                        CountersGroupHolder.builder()
                             .setName("counters_group1")
                             .setCounters(ImmutableMap.of("task_key1", 123L))
                             .build())
                     .addGroup(
-                        TezTaskCounterGroupHolder.builder()
+                        CountersGroupHolder.builder()
                             .setName("counters_group2")
                             .setCounters(
                                 ImmutableMap.of(
@@ -172,15 +204,7 @@ public class EventRecordConstructorTest {
             "[[{\"counters_group1\":{\"task_key1\":123}},{\"counters_group2\":{\"task_key1\":456,\"task_key2\":789}}]]");
   }
 
-  private ExecDriver createMapReduceTaskWithCounters(
-      String id, ImmutableMap<String, Long> counters) {
-    ExecDriver task = new ExecDriver();
-    task.setId(id);
-    task.taskCounters = new HashMap<>(counters);
-    return task;
-  }
-
-  private TezTask createTezTaskWithCounters(String id, TezTaskCounterHolder counters) {
+  private TezTask createTezTaskWithCounters(String id, CountersHolder counters) {
     TezWork tezWork = mock(TezWork.class);
     when(tezWork.getLlapMode()).thenReturn(false);
 
@@ -205,6 +229,20 @@ public class EventRecordConstructorTest {
     return task;
   }
 
+  private Counters createMapReduceCounters(CountersHolder countersHolder) {
+    Counters counters = new Counters();
+
+    countersHolder.groups().forEach(group -> {
+      Group countersGroup = counters.getGroup(group.name());
+      group.counters().forEach((key, value) -> {
+        Counter counterForName = countersGroup.getCounterForName(key);
+        counterForName.setValue(value);
+      });
+    });
+
+    return counters;
+  }
+
   private TezTask createTezTaskWithNullCounters(String id) {
     TezWork tezWork = mock(TezWork.class);
     when(tezWork.getLlapMode()).thenReturn(false);
@@ -217,42 +255,42 @@ public class EventRecordConstructorTest {
     return task;
   }
 
-  /** Component that simplifies {@link TezCounters} setup. */
+  /** Component that simplifies {@link Counters} and {@link TezCounters} setup. */
   @AutoValue
-  abstract static class TezTaskCounterHolder {
-    abstract ImmutableList<TezTaskCounterGroupHolder> groups();
+  abstract static class CountersHolder {
+    abstract ImmutableList<CountersGroupHolder> groups();
 
     public static Builder builder() {
-      return new AutoValue_EventRecordConstructorTest_TezTaskCounterHolder.Builder();
+      return new AutoValue_EventRecordConstructorTest_CountersHolder.Builder();
     }
 
-    /** Builder for {@link TezTaskCounterHolder} */
+    /** Builder for {@link CountersHolder} */
     @AutoValue.Builder
     abstract static class Builder {
-      abstract ImmutableList.Builder<TezTaskCounterGroupHolder> groupsBuilder();
+      abstract ImmutableList.Builder<CountersGroupHolder> groupsBuilder();
 
-      public final Builder addGroup(TezTaskCounterGroupHolder value) {
+      public final Builder addGroup(CountersGroupHolder value) {
         groupsBuilder().add(value);
         return this;
       }
 
-      public abstract TezTaskCounterHolder build();
+      public abstract CountersHolder build();
     }
   }
 
-  /** Component that simplifies {@link CounterGroup} setup. */
+  /** Component that simplifies {@link Counters.Group} and {@link CounterGroup} setup. */
   @AutoValue
-  abstract static class TezTaskCounterGroupHolder {
+  abstract static class CountersGroupHolder {
 
     abstract String name();
 
     abstract ImmutableMap<String, Long> counters();
 
     public static Builder builder() {
-      return new AutoValue_EventRecordConstructorTest_TezTaskCounterGroupHolder.Builder();
+      return new AutoValue_EventRecordConstructorTest_CountersGroupHolder.Builder();
     }
 
-    /** Builder for {@link TezTaskCounterGroupHolder} */
+    /** Builder for {@link CountersGroupHolder} */
     @AutoValue.Builder
     abstract static class Builder {
 
@@ -260,7 +298,7 @@ public class EventRecordConstructorTest {
 
       public abstract Builder setCounters(ImmutableMap<String, Long> value);
 
-      public abstract TezTaskCounterGroupHolder build();
+      public abstract CountersGroupHolder build();
     }
   }
 

@@ -59,6 +59,7 @@ public class EventLoggerTest {
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
 
     queryState = new QueryState(conf);
+    TestUtils.createDefaultSessionState(conf);
     hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
 
     logger = new EventLogger(conf, TestUtils.createFixedClock());
