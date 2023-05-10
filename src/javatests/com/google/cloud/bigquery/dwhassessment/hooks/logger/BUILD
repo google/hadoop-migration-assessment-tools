@@ -18,7 +18,6 @@ java_plugin(
     processor_class = "com.google.auto.value.processor.AutoValueProcessor",
     deps = [
         "@maven_tests//:com_google_auto_value_auto_value",
-        "@maven_tests//:org_apache_geronimo_specs_geronimo_annotation_1_0_spec",
     ],
 )
 
@@ -30,7 +29,6 @@ java_library(
     neverlink = 1,
     exports = [
         "@maven_tests//:com_google_auto_value_auto_value",
-        "@maven_tests//:org_apache_geronimo_specs_geronimo_annotation_1_0_spec",
     ],
 )
 
@@ -57,9 +55,6 @@ java_library(
         "@maven_tests//:org_apache_tez_tez_api_0_8_5",
         "@maven_tests//:org_mockito_mockito_core",
         "@maven_tests//:org_mockito_mockito_inline",
-        #        "@maven_tests//:org_powermock_powermock_api_mockito2",
-        #        "@maven_tests//:org_powermock_powermock_core",
-        #        "@maven_tests//:org_powermock_powermock_module_junit4",
         "@maven_tests//:org_slf4j_slf4j_api",
     ],
 )
