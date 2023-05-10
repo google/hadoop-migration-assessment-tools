@@ -28,7 +28,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -49,7 +48,6 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
-import org.apache.hadoop.mapreduce.Counter;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.json.JSONArray;
@@ -154,26 +152,50 @@ public class EventRecordConstructor {
     JSONArray outerObj = new JSONArray();
 
     // TODO: Use org.apache.hadoop.mapreduce.Counters
-    SessionState.get().getMapRedStats().values().stream().map(MapRedStats::getCounters).forEach(counters -> {
-      JSONArray groupObj = new JSONArray();
-
-      counters.forEach(
-          counterGroup -> {
-            JSONObject groupCounters =
-                new JSONObject(
-                    StreamSupport
-                        .stream(counterGroup.spliterator(), false)
-                        .collect(Collectors.toMap(Counters.Counter::getName, Counters.Counter::getValue)));
-            JSONObject counterGroupData =
-                new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
-
-            groupObj.put(counterGroupData);
-          });
-
-      outerObj.put(groupObj);
-    });
+    SessionState.get().getMapRedStats().values().stream()
+        .map(MapRedStats::getCounters)
+        .forEach(counters -> populateJsonArray(outerObj, counters));
 
     return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
+  }
+
+  // TODO: merge the 2 `populateJsonArray` functions
+  private static void populateJsonArray(JSONArray outerObj, Counters counters) {
+    JSONArray innerObj = new JSONArray();
+    counters.forEach(
+        counterGroup -> {
+          JSONObject groupCounters =
+              new JSONObject(
+                  StreamSupport
+                      .stream(counterGroup.spliterator(), false)
+                      .collect(Collectors.toMap(
+                          counter -> counter.getName(),
+                          counter -> counter.getValue()
+                      )));
+          JSONObject counterGroupData =
+              new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
+
+          innerObj.put(counterGroupData);
+        });
+
+    outerObj.put(innerObj);
+  }
+
+  private static void populateJsonArray(JSONArray outerObj, TezCounters tezCounters) {
+    JSONArray innerObj = new JSONArray();
+    tezCounters.forEach(
+        counterGroup -> {
+          JSONObject groupCounters =
+              new JSONObject(
+                  StreamSupport.stream(counterGroup.spliterator(), false)
+                      .collect(Collectors.toMap(TezCounter::getName, TezCounter::getValue)));
+          JSONObject counterGroupData =
+              new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
+
+          innerObj.put(counterGroupData);
+        });
+
+    outerObj.put(innerObj);
   }
 
   /**
@@ -188,22 +210,7 @@ public class EventRecordConstructor {
       if (tezCounters == null) {
         continue;
       }
-
-      JSONArray taskObj = new JSONArray();
-
-      tezCounters.forEach(
-          counterGroup -> {
-            JSONObject groupCounters =
-                new JSONObject(
-                    StreamSupport.stream(counterGroup.spliterator(), false)
-                        .collect(Collectors.toMap(TezCounter::getName, TezCounter::getValue)));
-            JSONObject counterGroupData =
-                new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
-
-            taskObj.put(counterGroupData);
-          });
-
-      outerObj.put(taskObj);
+      populateJsonArray(outerObj, tezCounters);
     }
 
     return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
