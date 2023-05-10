@@ -17,6 +17,7 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,6 +36,8 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -44,6 +48,7 @@ public class EventLoggerTest {
   @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @Mock Hive hiveMock;
+  @Mock SessionState sessionState;
 
   private String tmpFolder;
   private HookContext hookContext;
@@ -66,16 +71,20 @@ public class EventLoggerTest {
 
   @Test
   public void preExecHook_success() throws Exception {
-    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
-    queryState.setCommandType(HiveOperation.QUERY);
+    try (MockedStatic<SessionState> mockedStatic = Mockito.mockStatic(SessionState.class)) {
+      mockedStatic.when(SessionState::get).thenReturn(sessionState);
+      when(sessionState.getCurrentDatabase()).thenReturn("default_database");
+      hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+      queryState.setCommandType(HiveOperation.QUERY);
 
-    // Act
-    logger.handle(hookContext);
-    logger.shutdown();
+      // Act
+      logger.handle(hookContext);
+      logger.shutdown();
 
-    // Assert
-    List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+      // Assert
+      List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
+      assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+    }
   }
 
   @Test

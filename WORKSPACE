@@ -136,7 +136,9 @@ maven_install(
         "org.apache.curator:apache-curator:2.7.1",
         "junit:junit:4.13.2",
         "org.mockito:mockito-core:3.11.1",
+        "org.mockito:mockito-inline:3.11.1",
         "org.slf4j:slf4j-api:1.7.10",
+        "org.apache.geronimo.specs:geronimo-annotation_1.0_spec:1.1.1",
     ],
     excluded_artifacts = [
         "org.pentaho:pentaho-aggdesigner-algorithm",

@@ -257,7 +257,7 @@
       "default": []
     },
     {
-      "name": "Database",
+      "name": "DefaultDatabase",
       "type": [
         "null",
         "string"

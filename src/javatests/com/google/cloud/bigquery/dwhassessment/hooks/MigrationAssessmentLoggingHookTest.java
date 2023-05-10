@@ -16,6 +16,7 @@
 package com.google.cloud.bigquery.dwhassessment.hooks;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig;
@@ -29,6 +30,7 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,6 +38,8 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -48,6 +52,7 @@ public class MigrationAssessmentLoggingHookTest {
   public TemporaryFolder folder = new TemporaryFolder();
 
   @Mock Hive hiveMock;
+  @Mock SessionState sessionState;
 
   private HiveConf conf;
   private String tmpFolder;
@@ -66,17 +71,21 @@ public class MigrationAssessmentLoggingHookTest {
 
   @Test
   public void run_success() throws Exception {
-    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
-    queryState.setCommandType(HiveOperation.QUERY);
-    MigrationAssessmentLoggingHook hook = new MigrationAssessmentLoggingHook();
+    try (MockedStatic<SessionState> mockedStatic = Mockito.mockStatic(SessionState.class)) {
+      mockedStatic.when(SessionState::get).thenReturn(sessionState);
+      when(sessionState.getCurrentDatabase()).thenReturn("default_database");
+      hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+      queryState.setCommandType(HiveOperation.QUERY);
+      MigrationAssessmentLoggingHook hook = new MigrationAssessmentLoggingHook();
 
-    // Act
-    hook.run(hookContext);
-    EventLogger.getInstance(conf, Clock.systemUTC()).shutdown();
+      // Act
+      hook.run(hookContext);
+      EventLogger.getInstance(conf, Clock.systemUTC()).shutdown();
 
-    // Assert
-    List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+      // Assert
+      List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
+      assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+    }
   }
 
 

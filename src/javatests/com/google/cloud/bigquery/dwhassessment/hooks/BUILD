@@ -31,6 +31,7 @@ java_library(
         "@maven_tests//:org_apache_hive_hive_common",
         "@maven_tests//:org_apache_hive_hive_exec",
         "@maven_tests//:org_mockito_mockito_core",
+        "@maven_tests//:org_mockito_mockito_inline",
         "@maven_tests//:org_slf4j_slf4j_api",
     ],
 )

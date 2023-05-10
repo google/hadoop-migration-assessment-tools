@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
 import org.junit.Before;
@@ -51,6 +52,8 @@ import org.junit.experimental.theories.Theories;
 import org.junit.experimental.theories.Theory;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -62,6 +65,7 @@ public class EventRecordConstructorTest {
 
   @Mock
   Hive hiveMock;
+  @Mock SessionState sessionState;
 
   private EventRecordConstructor eventRecordConstructor;
 
@@ -80,14 +84,18 @@ public class EventRecordConstructorTest {
 
   @Test
   public void preExecHook_success() {
-    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
-    queryState.setCommandType(HiveOperation.QUERY);
+    try (MockedStatic<SessionState> mockedStatic = Mockito.mockStatic(SessionState.class)) {
+      mockedStatic.when(SessionState::get).thenReturn(sessionState);
+      when(sessionState.getCurrentDatabase()).thenReturn("default_database");
+      hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+      queryState.setCommandType(HiveOperation.QUERY);
 
-    // Act
-    Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
+      // Act
+      Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
-    // Assert
-    assertThat(record).hasValue(TestUtils.createPreExecRecord());
+      // Assert
+      assertThat(record).hasValue(TestUtils.createPreExecRecord());
+    }
   }
 
   @Test
