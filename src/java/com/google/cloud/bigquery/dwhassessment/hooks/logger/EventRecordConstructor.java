@@ -140,18 +140,14 @@ public class EventRecordConstructor {
             .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
             .set("OperationId", hookContext.getOperationId());
 
-    dumpMapReduceCounters()
-        .ifPresent(counters -> recordBuilder.set("MapReduceCountersObject", counters));
-    dumpTezCounters(Utilities.getTezTasks(plan.getRootTasks()))
-        .ifPresent(counters -> recordBuilder.set("TezCountersObject", counters));
+    dumpTezCounters(plan)
+        .map(Optional::of)
+        .orElseGet(EventRecordConstructor::dumpMapReduceCounters)
+        .ifPresent(counters -> recordBuilder.set("CountersObject", counters));
 
     return recordBuilder.build();
   }
 
-  /**
-   * Map red counters is a deeply nested set of key - value pairs. This attempts to dump them as
-   * is, preserving their original structure.
-   */
   private static Optional<String> dumpMapReduceCounters() {
     /*
      {@link org.apache.hadoop.mapred.Counters} is deprecated.
@@ -162,21 +158,20 @@ public class EventRecordConstructor {
         .getMapRedStats().values().stream()
         .map(MapRedStats::getCounters)
         .collect(Collectors.toList());
-    JSONArray array = generateJsonArray(list, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
-    return array.length() > 0 ? Optional.of(array.toString()) : Optional.empty();
+    return generateCountersJson(list, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
+  }
+
+  private static Optional<String> dumpTezCounters(QueryPlan plan) {
+    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    List<TezCounters> list = tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
+    return generateCountersJson(list, TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
   }
 
   /**
-   * Tez tasks counters is a deeply nested set of key - value pairs. This attempts to dump them as
+   * Counters are deeply nested sets of key - value pairs. This attempts to dump them as
    * is, preserving their original structure.
    */
-  private static Optional<String> dumpTezCounters(List<TezTask> tezTasks) {
-    List<TezCounters> list = tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
-    JSONArray array = generateJsonArray(list, TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
-    return array.length() > 0 ? Optional.of(array.toString()) : Optional.empty();
-  }
-
-  private static <C, G extends Iterable<C>> JSONArray generateJsonArray(List<? extends Iterable<G>> list,
+  private static <C, G extends Iterable<C>> Optional<String> generateCountersJson(List<? extends Iterable<G>> list,
       Function<C, String> nameFn, Function<C, Long> valueFn, Function<G, String> displayNameFn) {
     JSONArray outerObj = new JSONArray();
 
@@ -202,7 +197,7 @@ public class EventRecordConstructor {
           outerObj.put(innerObj);
         });
 
-    return outerObj;
+    return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
   }
 
   private static String dumpPerfData(PerfLogger perfLogger) {
