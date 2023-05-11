@@ -43,6 +43,14 @@
       "default": null
     },
     {
+      "name": "ExecutionEngine",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
       "name": "RequestUser",
       "type": [
         "null",
@@ -153,22 +161,6 @@
       "type": [
         "null",
         "string"
-      ],
-      "default": null
-    },
-    {
-      "name": "IsTez",
-      "type": [
-        "null",
-        "boolean"
-      ],
-      "default": null
-    },
-    {
-      "name": "IsMapReduce",
-      "type": [
-        "null",
-        "boolean"
       ],
       "default": null
     },

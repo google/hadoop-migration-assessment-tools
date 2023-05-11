@@ -24,5 +24,8 @@ public enum ExecutionMode {
   MR,
   TEZ,
   LLAP,
+  DDL,
+  CLIENT_ONLY,
+  SPARK,
   NONE
 }

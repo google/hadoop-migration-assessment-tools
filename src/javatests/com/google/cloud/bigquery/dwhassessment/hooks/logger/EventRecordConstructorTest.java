@@ -33,7 +33,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
+import org.apache.hadoop.hive.ql.exec.CopyTask;
+import org.apache.hadoop.hive.ql.exec.DDLTask;
 import org.apache.hadoop.hive.ql.exec.Task;
+import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
@@ -61,11 +64,9 @@ import org.mockito.junit.MockitoRule;
 @RunWith(Theories.class)
 public class EventRecordConstructorTest {
 
-  @Rule
-  public MockitoRule mocks = MockitoJUnit.rule();
+  @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Mock
-  Hive hiveMock;
+  @Mock Hive hiveMock;
 
   private EventRecordConstructor eventRecordConstructor;
 
@@ -95,7 +96,34 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record).hasValue(TestUtils.createPreExecRecord());
+    assertThat(record).hasValue(TestUtils.createPreExecRecordBuilder().build());
+  }
+
+  @DataPoints("ExecutionModes")
+  public static final ImmutableList<ExecutionModeTestCase> EXECUTION_MODE_TEST_CASES =
+      ImmutableList.of(
+          ExecutionModeTestCase.create(
+              "TEZ", createTezTaskWithNullCounters("id1", /* isLlapMode= */ false)),
+          ExecutionModeTestCase.create(
+              "LLAP",
+              createTezTaskWithNullCounters("id1", /* isLlapMode= */ false),
+              createTezTaskWithNullCounters("id2", /* isLlapMode= */ true)),
+          ExecutionModeTestCase.create("MR", new ExecDriver()),
+          ExecutionModeTestCase.create("DDL", new DDLTask()),
+          ExecutionModeTestCase.create("NONE", new CopyTask()));
+
+  @Theory
+  public void preExecHook_executionMode(
+      @FromDataPoints("ExecutionModes") ExecutionModeTestCase testCase) {
+    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+    queryState.setCommandType(HiveOperation.QUERY);
+    queryPlan.setRootTasks(new ArrayList<>(testCase.tasks()));
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat(record.get("ExecutionMode")).isEqualTo(testCase.executionMode());
   }
 
   @Test
@@ -129,29 +157,32 @@ public class EventRecordConstructorTest {
       @FromDataPoints("PostHookTypes") HookType hookType) {
     hookContext.setHookType(hookType);
 
-    CountersHolder countersHolder = CountersHolder.builder()
-        .addGroup(
-            CountersGroupHolder.builder()
-                .setName("counters_group1")
-                .setCounters(ImmutableMap.of("metric_key1", 123L))
-                .build())
-        .addGroup(
-            CountersGroupHolder.builder()
-                .setName("counters_group2")
-                .setCounters(
-                    ImmutableMap.of(
-                        "metric_key1", 456L,
-                        "metric_key2", 789L))
-                .build())
-        .build();
+    CountersHolder countersHolder =
+        CountersHolder.builder()
+            .addGroup(
+                CountersGroupHolder.builder()
+                    .setName("counters_group1")
+                    .setCounters(ImmutableMap.of("metric_key1", 123L))
+                    .build())
+            .addGroup(
+                CountersGroupHolder.builder()
+                    .setName("counters_group2")
+                    .setCounters(
+                        ImmutableMap.of(
+                            "metric_key1", 456L,
+                            "metric_key2", 789L))
+                    .build())
+            .build();
 
     Counters expectedCounters = createMapReduceCounters(countersHolder);
 
-    MapRedStats stats = new MapRedStats(/* numMap= */ 0,
-        /* numReduce= */ 0,
-        /* cpuMSec= */ 0L,
-        /* ifSuccess= */ true,
-        /* jobId= */ "1");
+    MapRedStats stats =
+        new MapRedStats(
+            /* numMap= */ 0,
+            /* numReduce= */ 0,
+            /* cpuMSec= */ 0L,
+            /* ifSuccess= */ true,
+            /* jobId= */ "1");
     stats.setCounters(expectedCounters);
 
     state.getMapRedStats().put("Map Stage 1", stats);
@@ -172,7 +203,7 @@ public class EventRecordConstructorTest {
 
     ImmutableList<Task<? extends Serializable>> tezTasks =
         ImmutableList.of(
-            createTezTaskWithNullCounters("id1"),
+            createTezTaskWithNullCounters("id1", /* isLlapMode= */ false),
             createTezTaskWithCounters(
                 "id2",
                 CountersHolder.builder()
@@ -229,20 +260,26 @@ public class EventRecordConstructorTest {
   private Counters createMapReduceCounters(CountersHolder countersHolder) {
     Counters counters = new Counters();
 
-    countersHolder.groups().forEach(group -> {
-      Group countersGroup = counters.getGroup(group.name());
-      group.counters().forEach((key, value) -> {
-        Counter counterForName = countersGroup.getCounterForName(key);
-        counterForName.setValue(value);
-      });
-    });
+    countersHolder
+        .groups()
+        .forEach(
+            group -> {
+              Group countersGroup = counters.getGroup(group.name());
+              group
+                  .counters()
+                  .forEach(
+                      (key, value) -> {
+                        Counter counterForName = countersGroup.getCounterForName(key);
+                        counterForName.setValue(value);
+                      });
+            });
 
     return counters;
   }
 
-  private TezTask createTezTaskWithNullCounters(String id) {
+  private static TezTask createTezTaskWithNullCounters(String id, boolean isLlapMode) {
     TezWork tezWork = mock(TezWork.class);
-    when(tezWork.getLlapMode()).thenReturn(false);
+    when(tezWork.getLlapMode()).thenReturn(isLlapMode);
 
     TezTask task = mock(TezTask.class);
     when(task.getId()).thenReturn(id);
@@ -250,6 +287,19 @@ public class EventRecordConstructorTest {
     when(task.getTezCounters()).thenReturn(null);
 
     return task;
+  }
+
+  @AutoValue
+  abstract static class ExecutionModeTestCase {
+    abstract String executionMode();
+
+    abstract ImmutableList<Task<? extends Serializable>> tasks();
+
+    static ExecutionModeTestCase create(
+        String executionMode, Task<? extends Serializable>... tasks) {
+      return new AutoValue_EventRecordConstructorTest_ExecutionModeTestCase(
+          executionMode, ImmutableList.copyOf(tasks));
+    }
   }
 
   /** Component that simplifies {@link Counters} and {@link TezCounters} setup. */
@@ -298,5 +348,4 @@ public class EventRecordConstructorTest {
       public abstract CountersGroupHolder build();
     }
   }
-
 }

@@ -23,6 +23,7 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.DATABASE;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -41,8 +42,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
 import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
+import org.apache.hadoop.hive.ql.exec.DDLTask;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
+import org.apache.hadoop.hive.ql.exec.spark.SparkTask;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
@@ -89,9 +92,7 @@ public class EventRecordConstructor {
 
     // Make a copy so that we do not modify hookContext conf.
     HiveConf conf = new HiveConf(hookContext.getConf());
-    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
-    ExecutionMode executionMode = getExecutionMode(mrTasks, tezTasks);
+    ExecutionMode executionMode = getExecutionMode(plan);
 
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", plan.getQueryId())
@@ -102,11 +103,10 @@ public class EventRecordConstructor {
         .set("UserName", getUser(hookContext))
         .set("RequestUser", getRequestUser(hookContext))
         .set("ExecutionMode", executionMode.name())
+        .set("ExecutionEngine", conf.get("hive.execution.engine"))
         .set("Queue", getQueueName(executionMode, conf))
         .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
         .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
-        .set("IsMapReduce", mrTasks.size() > 0)
-        .set("IsTez", tezTasks.size() > 0)
         .set("SessionId", hookContext.getSessionId())
         .set("InvokerInfo", conf.getLogIdVar(hookContext.getSessionId()))
         .set("ThreadName", hookContext.getThreadId())
@@ -126,6 +126,9 @@ public class EventRecordConstructor {
   private GenericRecord getPostHookEvent(HookContext hookContext, EventStatus status) {
     QueryPlan plan = hookContext.getQueryPlan();
     LOG.info("Received post-hook notification for: {}", plan.getQueryId());
+
+    LOG.info("$$$ Tasks size {}", plan.getRootTasks().size());
+    plan.getRootTasks().forEach(task -> LOG.info("Received task: {}", task.getClass().getName()));
 
     GenericRecordBuilder recordBuilder =
         new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
@@ -154,29 +157,34 @@ public class EventRecordConstructor {
      If, for any reason, this becomes an issue in the future,
      use {@link org.apache.hadoop.mapreduce.Counters}
     */
-    List<Counters> list = SessionState.get()
-        .getMapRedStats().values().stream()
-        .map(MapRedStats::getCounters)
-        .collect(Collectors.toList());
+    List<Counters> list =
+        SessionState.get().getMapRedStats().values().stream()
+            .map(MapRedStats::getCounters)
+            .collect(Collectors.toList());
     return generateCountersJson(list, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
   }
 
   private static Optional<String> dumpTezCounters(QueryPlan plan) {
     List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
-    List<TezCounters> list = tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
-    return generateCountersJson(list, TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
+    List<TezCounters> list =
+        tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
+    return generateCountersJson(
+        list, TezCounter::getName, TezCounter::getValue, CounterGroup::getDisplayName);
   }
 
   /**
-   * Counters are deeply nested sets of key - value pairs. This attempts to dump them as
-   * is, preserving their original structure.
+   * Counters are deeply nested sets of key - value pairs. This attempts to dump them as is,
+   * preserving their original structure.
    */
-  private static <C, G extends Iterable<C>> Optional<String> generateCountersJson(List<? extends Iterable<G>> list,
-      Function<C, String> nameFn, Function<C, Long> valueFn, Function<G, String> displayNameFn) {
+  private static <C, G extends Iterable<C>> Optional<String> generateCountersJson(
+      List<? extends Iterable<G>> list,
+      Function<C, String> nameFn,
+      Function<C, Long> valueFn,
+      Function<G, String> displayNameFn) {
     JSONArray outerObj = new JSONArray();
 
-    list
-        .forEach(counters -> {
+    list.forEach(
+        counters -> {
           if (counters == null) {
             return;
           }
@@ -239,8 +247,16 @@ public class EventRecordConstructor {
     return requestUser == null ? hookContext.getUgi().getUserName() : requestUser;
   }
 
-  private static ExecutionMode getExecutionMode(List<ExecDriver> mrTasks, List<TezTask> tezTasks) {
-    if (tezTasks.size() > 0) {
+  private static ExecutionMode getExecutionMode(QueryPlan plan) {
+    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
+    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    List<SparkTask> sparkTasks = Utilities.getSparkTasks(plan.getRootTasks());
+    List<DDLTask> ddlTasks = TasksRetriever.getDdlTasks(plan.getRootTasks());
+
+    // Utilities methods check for null, so possibly it is nullable
+    if (plan.getRootTasks() != null && plan.getRootTasks().isEmpty()) {
+      return ExecutionMode.CLIENT_ONLY;
+    } else if (!tezTasks.isEmpty()) {
       // Need to go in and check if any of the tasks is running in LLAP mode.
       for (TezTask tezTask : tezTasks) {
         if (tezTask.getWork().getLlapMode()) {
@@ -248,11 +264,15 @@ public class EventRecordConstructor {
         }
       }
       return ExecutionMode.TEZ;
-    } else if (mrTasks.size() > 0) {
+    } else if (!mrTasks.isEmpty()) {
       return ExecutionMode.MR;
-    } else {
-      return ExecutionMode.NONE;
+    } else if (!sparkTasks.isEmpty()) {
+      return ExecutionMode.SPARK;
+    } else if (!ddlTasks.isEmpty()) {
+      return ExecutionMode.DDL;
     }
+
+    return ExecutionMode.NONE;
   }
 
   private static String getQueueName(ExecutionMode mode, HiveConf conf) {
@@ -263,7 +283,6 @@ public class EventRecordConstructor {
         return conf.get(MR_QUEUE_NAME.getConfName());
       case TEZ:
         return conf.get(TEZ_QUEUE_NAME.getConfName());
-      case NONE:
       default:
         return null;
     }

@@ -101,19 +101,18 @@ public final class TestUtils {
     return Clock.fixed(Instant.ofEpochMilli(QUERY_END_TIME), ZoneOffset.UTC);
   }
 
-  public static Record createPreExecRecord() {
+  public static GenericRecordBuilder createPreExecRecordBuilder() {
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", TestUtils.DEFAULT_QUERY_ID)
         .set("QueryType", "QUERY")
         .set("QueryText", TestUtils.DEFAULT_QUERY_TEXT)
         .set("EventType", "QUERY_SUBMITTED")
-        .set("ExecutionMode", "NONE")
+        .set("ExecutionMode", "CLIENT_ONLY")
+        .set("ExecutionEngine", "mr")
         .set("StartTime", 1234L)
         .set("RequestUser", "test_user")
         .set("UserName", System.getProperty("user.name"))
         .set("SessionId", "test_session_id")
-        .set("IsTez", false)
-        .set("IsMapReduce", false)
         .set("InvokerInfo", "test_session_id")
         .set("ThreadName", "test_thread_id")
         .set("HookVersion", "1.0")
@@ -121,8 +120,7 @@ public final class TestUtils {
         .set("HiveAddress", "hive_addr")
         .set("HiveInstanceType", "HS2")
         .set("OperationId", "test_op_id")
-        .set("DefaultDatabase", "default")
-        .build();
+        .set("DefaultDatabase", "default");
   }
 
   public static Record createPostExecRecord(EventStatus status) {
