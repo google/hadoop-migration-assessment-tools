@@ -99,6 +99,20 @@ public class EventRecordConstructorTest {
   }
 
   @Test
+  public void preExecHook_shouldGetDatabase() {
+    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+    queryState.setCommandType(HiveOperation.QUERY);
+    SessionState.get().setCurrentDatabase("DB");
+
+    // Act
+    Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
+
+    // Assert
+    assertThat(record.isPresent()).isTrue();
+    assertThat(record.get().get("DefaultDatabase")).isEqualTo("DB");
+  }
+
+  @Test
   public void postExecHook_success() {
     hookContext.setHookType(HookType.POST_EXEC_HOOK);
 
