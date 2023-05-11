@@ -102,18 +102,6 @@ public class EventRecordConstructorTest {
 
     // Assert
     assertThat(record).hasValue(TestUtils.createPreExecRecord());
-    // try (MockedStatic<SessionState> mockedStatic = Mockito.mockStatic(SessionState.class)) {
-    //   mockedStatic.when(SessionState::get).thenReturn(sessionState);
-    //   when(sessionState.getCurrentDatabase()).thenReturn("default_database");
-    //   hookContext.setHookType(HookType.PRE_EXEC_HOOK);
-    //   queryState.setCommandType(HiveOperation.QUERY);
-    //
-    //   // Act
-    //   Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
-    //
-    //   // Assert
-    //   assertThat(record).hasValue(TestUtils.createPreExecRecord());
-    // }
   }
 
   @Test

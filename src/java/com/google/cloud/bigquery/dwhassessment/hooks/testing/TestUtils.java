@@ -121,7 +121,7 @@ public final class TestUtils {
         .set("HiveAddress", "hive_addr")
         .set("HiveInstanceType", "HS2")
         .set("OperationId", "test_op_id")
-        .set("DefaultDatabase", "default_database")
+        .set("DefaultDatabase", "default")
         .build();
   }
 
