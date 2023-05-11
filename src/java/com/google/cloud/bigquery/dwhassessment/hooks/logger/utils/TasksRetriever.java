@@ -29,13 +29,13 @@ public final class TasksRetriever {
   public static List<DDLTask> getDdlTasks(List<Task<? extends Serializable>> tasks) {
     List<DDLTask> ddlTasks = new ArrayList<>();
     if (tasks != null) {
-      getDdlTasksRecursive(tasks, ddlTasks);
+      getDdlTasksRecursively(tasks, ddlTasks);
     }
 
     return ddlTasks;
   }
 
-  private static void getDdlTasksRecursive(
+  private static void getDdlTasksRecursively(
       List<Task<? extends Serializable>> tasks, List<DDLTask> ddlTasks) {
 
     for (Task<? extends Serializable> task : tasks) {
@@ -44,7 +44,7 @@ public final class TasksRetriever {
       }
 
       if (task.getDependentTasks() != null) {
-        getDdlTasksRecursive(task.getDependentTasks(), ddlTasks);
+        getDdlTasksRecursively(task.getDependentTasks(), ddlTasks);
       }
     }
   }
