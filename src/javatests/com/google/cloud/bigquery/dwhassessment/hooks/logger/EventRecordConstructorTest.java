@@ -105,11 +105,10 @@ public class EventRecordConstructorTest {
     SessionState.get().setCurrentDatabase("DB");
 
     // Act
-    Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
 
     // Assert
-    assertThat(record.isPresent()).isTrue();
-    assertThat(record.get().get("DefaultDatabase")).isEqualTo("DB");
+    assertThat(record.get("DefaultDatabase")).isEqualTo("DB");
   }
 
   @Test
