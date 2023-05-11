@@ -16,7 +16,6 @@
 package com.google.cloud.bigquery.dwhassessment.hooks;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig;

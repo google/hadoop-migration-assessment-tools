@@ -58,8 +58,6 @@ import org.junit.experimental.theories.Theories;
 import org.junit.experimental.theories.Theory;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -71,7 +69,6 @@ public class EventRecordConstructorTest {
 
   @Mock
   Hive hiveMock;
-  @Mock SessionState sessionState;
 
   private EventRecordConstructor eventRecordConstructor;
 

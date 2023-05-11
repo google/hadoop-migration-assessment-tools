@@ -17,7 +17,6 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import java.util.List;
