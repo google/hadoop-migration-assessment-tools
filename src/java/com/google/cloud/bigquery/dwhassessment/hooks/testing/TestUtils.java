@@ -26,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData.Record;
@@ -47,6 +48,7 @@ import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
+import org.apache.hadoop.hive.ql.session.SessionState;
 
 /** Common utils for testing */
 public final class TestUtils {
@@ -58,8 +60,11 @@ public final class TestUtils {
   private TestUtils() {
   }
 
-  public static QueryState createDefaultQueryState() {
-    return new QueryState(new HiveConf());
+  public static SessionState createDefaultSessionState(HiveConf conf) {
+    SessionState state = new SessionState(conf);
+    state.setMapRedStats(new HashMap<>());
+    SessionState.setCurrentSessionState(state);
+    return state;
   }
 
   public static QueryPlan createDefaultQueryPlan(Hive hive, QueryState state)
