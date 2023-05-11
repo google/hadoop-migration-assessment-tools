@@ -26,9 +26,7 @@ import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
-import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Optional;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -36,7 +34,6 @@ import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.exec.Task;
-import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
@@ -163,7 +160,7 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record.get().get("MapReduceCountersObject"))
+    assertThat(record.get().get("CountersObject"))
         .isEqualTo(
             "[[{\"counters_group1\":{\"metric_key1\":123}},{\"counters_group2\":{\"metric_key1\":456,\"metric_key2\":789}}]]");
   }
@@ -199,7 +196,7 @@ public class EventRecordConstructorTest {
     Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
 
     // Assert
-    assertThat(record.get().get("TezCountersObject"))
+    assertThat(record.get().get("CountersObject"))
         .isEqualTo(
             "[[{\"counters_group1\":{\"task_key1\":123}},{\"counters_group2\":{\"task_key1\":456,\"task_key2\":789}}]]");
   }

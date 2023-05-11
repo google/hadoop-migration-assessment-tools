@@ -141,15 +141,7 @@
       "default": null
     },
     {
-      "name": "MapReduceCountersObject",
-      "type": [
-        "null",
-        "string"
-      ],
-      "default": null
-    },
-    {
-      "name": "TezCountersObject",
+      "name": "CountersObject",
       "type": [
         "null",
         "string"
