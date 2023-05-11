@@ -60,6 +60,7 @@ public class MigrationAssessmentLoggingHookTest {
     tmpFolder = folder.newFolder().getAbsolutePath();
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
 
+    TestUtils.createDefaultSessionState(conf);
     queryState = new QueryState(conf);
     hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
   }

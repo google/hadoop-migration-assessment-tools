@@ -119,6 +119,7 @@ public class EventRecordConstructor {
         .set("OperationId", hookContext.getOperationId())
         .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
         .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
+        .set("DefaultDatabase", SessionState.get().getCurrentDatabase())
         .build();
   }
 
