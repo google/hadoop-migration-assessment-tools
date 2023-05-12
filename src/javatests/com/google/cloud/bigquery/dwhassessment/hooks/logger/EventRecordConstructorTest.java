@@ -42,7 +42,6 @@ import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
-import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
@@ -61,11 +60,9 @@ import org.mockito.junit.MockitoRule;
 @RunWith(Theories.class)
 public class EventRecordConstructorTest {
 
-  @Rule
-  public MockitoRule mocks = MockitoJUnit.rule();
+  @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Mock
-  Hive hiveMock;
+  @Mock Hive hiveMock;
 
   private EventRecordConstructor eventRecordConstructor;
 
@@ -129,29 +126,32 @@ public class EventRecordConstructorTest {
       @FromDataPoints("PostHookTypes") HookType hookType) {
     hookContext.setHookType(hookType);
 
-    CountersHolder countersHolder = CountersHolder.builder()
-        .addGroup(
-            CountersGroupHolder.builder()
-                .setName("counters_group1")
-                .setCounters(ImmutableMap.of("metric_key1", 123L))
-                .build())
-        .addGroup(
-            CountersGroupHolder.builder()
-                .setName("counters_group2")
-                .setCounters(
-                    ImmutableMap.of(
-                        "metric_key1", 456L,
-                        "metric_key2", 789L))
-                .build())
-        .build();
+    CountersHolder countersHolder =
+        CountersHolder.builder()
+            .addGroup(
+                CountersGroupHolder.builder()
+                    .setName("counters_group1")
+                    .setCounters(ImmutableMap.of("metric_key1", 123L))
+                    .build())
+            .addGroup(
+                CountersGroupHolder.builder()
+                    .setName("counters_group2")
+                    .setCounters(
+                        ImmutableMap.of(
+                            "metric_key1", 456L,
+                            "metric_key2", 789L))
+                    .build())
+            .build();
 
     Counters expectedCounters = createMapReduceCounters(countersHolder);
 
-    MapRedStats stats = new MapRedStats(/* numMap= */ 0,
-        /* numReduce= */ 0,
-        /* cpuMSec= */ 0L,
-        /* ifSuccess= */ true,
-        /* jobId= */ "1");
+    MapRedStats stats =
+        new MapRedStats(
+            /* numMap= */ 0,
+            /* numReduce= */ 0,
+            /* cpuMSec= */ 0L,
+            /* ifSuccess= */ true,
+            /* jobId= */ "1");
     stats.setCounters(expectedCounters);
 
     state.getMapRedStats().put("Map Stage 1", stats);
@@ -229,13 +229,15 @@ public class EventRecordConstructorTest {
   private Counters createMapReduceCounters(CountersHolder countersHolder) {
     Counters counters = new Counters();
 
-    countersHolder.groups().forEach(group -> {
-      Group countersGroup = counters.getGroup(group.name());
-      group.counters().forEach((key, value) -> {
-        Counter counterForName = countersGroup.getCounterForName(key);
-        counterForName.setValue(value);
-      });
-    });
+    countersHolder
+        .groups()
+        .forEach(
+            group -> {
+              Group countersGroup = counters.getGroup(group.name());
+              group
+                  .counters()
+                  .forEach((key, value) -> countersGroup.getCounterForName(key).setValue(value));
+            });
 
     return counters;
   }
@@ -298,5 +300,4 @@ public class EventRecordConstructorTest {
       public abstract CountersGroupHolder build();
     }
   }
-
 }

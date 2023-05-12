@@ -57,8 +57,7 @@ public final class TestUtils {
   public static final String DEFAULT_QUERY_TEXT = "SELECT * FROM employees";
   public static final String DEFAULT_QUERY_ID = "hive_query_id_999";
 
-  private TestUtils() {
-  }
+  private TestUtils() {}
 
   public static SessionState createDefaultSessionState(HiveConf conf) {
     SessionState state = new SessionState(conf);
@@ -70,12 +69,11 @@ public final class TestUtils {
   public static QueryPlan createDefaultQueryPlan(Hive hive, QueryState state)
       throws SemanticException {
     BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(state, hive);
-    return new QueryPlan(DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID,
-        HiveOperation.QUERY, null);
+    return new QueryPlan(
+        DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID, HiveOperation.QUERY, null);
   }
 
-  public static HookContext createDefaultHookContext(Hive hive, QueryState state)
-      throws Exception {
+  public static HookContext createDefaultHookContext(Hive hive, QueryState state) throws Exception {
     QueryPlan plan = createDefaultQueryPlan(hive, state);
     return createDefaultHookContext(plan, state);
   }
@@ -146,7 +144,8 @@ public final class TestUtils {
 
     ImmutableList<FileStatus> directories = ImmutableList.copyOf(fs.listStatus(path));
     assertThat(directories).hasSize(1);
-    ImmutableList<FileStatus> files =  ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
+    ImmutableList<FileStatus> files =
+        ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
     assertThat(files).hasSize(1);
 
     FSDataInputStream inputStream = fs.open(files.get(0).getPath());

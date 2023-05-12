@@ -154,29 +154,34 @@ public class EventRecordConstructor {
      If, for any reason, this becomes an issue in the future,
      use {@link org.apache.hadoop.mapreduce.Counters}
     */
-    List<Counters> list = SessionState.get()
-        .getMapRedStats().values().stream()
-        .map(MapRedStats::getCounters)
-        .collect(Collectors.toList());
+    List<Counters> list =
+        SessionState.get().getMapRedStats().values().stream()
+            .map(MapRedStats::getCounters)
+            .collect(Collectors.toList());
     return generateCountersJson(list, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
   }
 
   private static Optional<String> dumpTezCounters(QueryPlan plan) {
     List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
-    List<TezCounters> list = tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
-    return generateCountersJson(list, TezCounter::getName, TezCounter::getValue,CounterGroup::getDisplayName);
+    List<TezCounters> list =
+        tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
+    return generateCountersJson(
+        list, TezCounter::getName, TezCounter::getValue, CounterGroup::getDisplayName);
   }
 
   /**
-   * Counters are deeply nested sets of key - value pairs. This attempts to dump them as
-   * is, preserving their original structure.
+   * Counters are deeply nested sets of key - value pairs. This attempts to dump them as is,
+   * preserving their original structure.
    */
-  private static <C, G extends Iterable<C>> Optional<String> generateCountersJson(List<? extends Iterable<G>> list,
-      Function<C, String> nameFn, Function<C, Long> valueFn, Function<G, String> displayNameFn) {
+  private static <C, G extends Iterable<C>> Optional<String> generateCountersJson(
+      List<? extends Iterable<G>> list,
+      Function<C, String> nameFn,
+      Function<C, Long> valueFn,
+      Function<G, String> displayNameFn) {
     JSONArray outerObj = new JSONArray();
 
-    list
-        .forEach(counters -> {
+    list.forEach(
+        counters -> {
           if (counters == null) {
             return;
           }

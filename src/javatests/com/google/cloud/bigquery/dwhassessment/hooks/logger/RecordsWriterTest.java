@@ -42,11 +42,9 @@ import org.mockito.junit.MockitoRule;
 
 @RunWith(JUnit4.class)
 public class RecordsWriterTest {
-  @Rule
-  public MockitoRule mocks = MockitoJUnit.rule();
+  @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   private HiveConf conf;
   private Path outputFilePath;
@@ -108,8 +106,6 @@ public class RecordsWriterTest {
   }
 
   private GenericRecord createMessage(String id) {
-    return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
-        .set("QueryId", id)
-        .build();
+    return new GenericRecordBuilder(QUERY_EVENT_SCHEMA).set("QueryId", id).build();
   }
 }
