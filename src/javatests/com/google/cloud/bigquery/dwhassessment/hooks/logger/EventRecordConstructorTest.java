@@ -45,7 +45,6 @@ import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
-import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
@@ -267,11 +266,7 @@ public class EventRecordConstructorTest {
               Group countersGroup = counters.getGroup(group.name());
               group
                   .counters()
-                  .forEach(
-                      (key, value) -> {
-                        Counter counterForName = countersGroup.getCounterForName(key);
-                        counterForName.setValue(value);
-                      });
+                  .forEach((key, value) -> countersGroup.getCounterForName(key).setValue(value));
             });
 
     return counters;

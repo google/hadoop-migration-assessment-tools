@@ -44,8 +44,7 @@ public class MigrationAssessmentLoggingHookTest {
 
   @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @Mock Hive hiveMock;
 
@@ -79,6 +78,4 @@ public class MigrationAssessmentLoggingHookTest {
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
     assertThat(records).containsExactly(TestUtils.createPreExecRecordBuilder().build());
   }
-
-
 }
