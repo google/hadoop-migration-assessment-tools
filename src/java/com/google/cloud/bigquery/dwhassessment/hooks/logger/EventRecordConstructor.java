@@ -124,9 +124,6 @@ public class EventRecordConstructor {
     QueryPlan plan = hookContext.getQueryPlan();
     LOG.info("Received post-hook notification for: {}", plan.getQueryId());
 
-    LOG.info("$$$ Tasks size {}", plan.getRootTasks().size());
-    plan.getRootTasks().forEach(task -> LOG.info("Received task: {}", task.getClass().getName()));
-
     GenericRecordBuilder recordBuilder =
         new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
             .set("QueryId", plan.getQueryId())

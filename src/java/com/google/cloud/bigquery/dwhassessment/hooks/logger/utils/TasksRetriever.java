@@ -17,7 +17,6 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger.utils;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.hive.ql.exec.DDLTask;
 import org.apache.hadoop.hive.ql.exec.Task;
