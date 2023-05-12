@@ -76,6 +76,6 @@ public class MigrationAssessmentLoggingHookTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+    assertThat(records).containsExactly(TestUtils.createPreExecRecordBuilder().build());
   }
 }
