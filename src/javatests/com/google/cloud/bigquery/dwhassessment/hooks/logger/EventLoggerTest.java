@@ -102,6 +102,6 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPostExecRecord(EventStatus.FAIL));;
+    assertThat(records).containsExactly(TestUtils.createPostExecRecord(EventStatus.FAIL));
   }
 }

@@ -20,5 +20,3 @@ public enum EventType {
   QUERY_SUBMITTED,
   QUERY_COMPLETED,
 }
-
-
