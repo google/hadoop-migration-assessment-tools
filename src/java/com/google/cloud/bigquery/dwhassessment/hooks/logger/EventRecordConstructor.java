@@ -42,10 +42,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
 import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
-import org.apache.hadoop.hive.ql.exec.DDLTask;
 import org.apache.hadoop.hive.ql.exec.Utilities;
-import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
-import org.apache.hadoop.hive.ql.exec.spark.SparkTask;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
@@ -248,15 +245,13 @@ public class EventRecordConstructor {
   }
 
   private static ExecutionMode getExecutionMode(QueryPlan plan) {
-    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
-    List<SparkTask> sparkTasks = Utilities.getSparkTasks(plan.getRootTasks());
-    List<DDLTask> ddlTasks = TasksRetriever.getDdlTasks(plan.getRootTasks());
-
     // Utilities methods check for null, so possibly it is nullable
     if (plan.getRootTasks() != null && plan.getRootTasks().isEmpty()) {
       return ExecutionMode.CLIENT_ONLY;
-    } else if (!tezTasks.isEmpty()) {
+    }
+
+    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    if (!tezTasks.isEmpty()) {
       // Need to go in and check if any of the tasks is running in LLAP mode.
       for (TezTask tezTask : tezTasks) {
         if (tezTask.getWork().getLlapMode()) {
@@ -264,11 +259,17 @@ public class EventRecordConstructor {
         }
       }
       return ExecutionMode.TEZ;
-    } else if (!mrTasks.isEmpty()) {
+    }
+
+    if (!Utilities.getMRTasks(plan.getRootTasks()).isEmpty()) {
       return ExecutionMode.MR;
-    } else if (!sparkTasks.isEmpty()) {
+    }
+
+    if (!Utilities.getSparkTasks(plan.getRootTasks()).isEmpty()) {
       return ExecutionMode.SPARK;
-    } else if (!ddlTasks.isEmpty()) {
+    }
+
+    if (TasksRetriever.hasDdlTask(plan.getRootTasks())) {
       return ExecutionMode.DDL;
     }
 

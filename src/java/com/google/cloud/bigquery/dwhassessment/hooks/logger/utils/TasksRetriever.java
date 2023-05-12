@@ -26,26 +26,17 @@ import org.apache.hadoop.hive.ql.exec.Task;
 public final class TasksRetriever {
   private TasksRetriever() {}
 
-  public static List<DDLTask> getDdlTasks(List<Task<? extends Serializable>> tasks) {
-    List<DDLTask> ddlTasks = new ArrayList<>();
-    if (tasks != null) {
-      getDdlTasksRecursively(tasks, ddlTasks);
-    }
-
-    return ddlTasks;
-  }
-
-  private static void getDdlTasksRecursively(
-      List<Task<? extends Serializable>> tasks, List<DDLTask> ddlTasks) {
-
+  public static boolean hasDdlTask(List<Task<? extends Serializable>> tasks) {
     for (Task<? extends Serializable> task : tasks) {
-      if (task instanceof DDLTask && !ddlTasks.contains(task)) {
-        ddlTasks.add((DDLTask) task);
+      if (task instanceof DDLTask) {
+        return true;
       }
 
       if (task.getDependentTasks() != null) {
-        getDdlTasksRecursively(task.getDependentTasks(), ddlTasks);
+        return hasDdlTask(task.getDependentTasks());
       }
     }
+
+    return false;
   }
 }
