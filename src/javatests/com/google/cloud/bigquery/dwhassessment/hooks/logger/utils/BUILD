@@ -19,9 +19,11 @@ java_library(
     srcs = glob(["*.java"]),
     deps = [
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger/utils",
+        "@maven_tests//:com_google_guava_guava",
         "@maven_tests//:com_google_truth_truth",
         "@maven_tests//:commons_lang_commons_lang",
         "@maven_tests//:junit_junit",
+        "@maven_tests//:org_apache_hive_hive_exec",
     ],
 )
 
@@ -29,6 +31,15 @@ java_test(
     name = "IdGeneratorTest",
     size = "small",
     test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGeneratorTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "TasksRetrieverTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetrieverTest",
     runtime_deps = [
         ":tests",
     ],

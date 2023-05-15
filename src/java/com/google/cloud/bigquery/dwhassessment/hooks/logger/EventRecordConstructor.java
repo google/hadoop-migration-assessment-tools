@@ -23,32 +23,37 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.DATABASE;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
+import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.exec.Utilities;
-import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.Counters.Group;
+import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
-import org.json.JSONObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,9 +88,7 @@ public class EventRecordConstructor {
 
     // Make a copy so that we do not modify hookContext conf.
     HiveConf conf = new HiveConf(hookContext.getConf());
-    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
-    ExecutionMode executionMode = getExecutionMode(mrTasks, tezTasks);
+    ExecutionMode executionMode = getExecutionMode(plan);
 
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", plan.getQueryId())
@@ -96,13 +99,12 @@ public class EventRecordConstructor {
         .set("UserName", getUser(hookContext))
         .set("RequestUser", getRequestUser(hookContext))
         .set("ExecutionMode", executionMode.name())
+        .set("ExecutionEngine", conf.get("hive.execution.engine"))
         .set("Queue", getQueueName(executionMode, conf))
         .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
         .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
         .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
         .set("PartitionsWritten", getPartitionsFromEntitySet(plan.getOutputs()))
-        .set("IsMapReduce", mrTasks.size() > 0)
-        .set("IsTez", tezTasks.size() > 0)
         .set("SessionId", hookContext.getSessionId())
         .set("InvokerInfo", conf.getLogIdVar(hookContext.getSessionId()))
         .set("ThreadName", hookContext.getThreadId())
@@ -115,15 +117,13 @@ public class EventRecordConstructor {
         .set("OperationId", hookContext.getOperationId())
         .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
         .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
+        .set("DefaultDatabase", SessionState.get().getCurrentDatabase())
         .build();
   }
 
   private GenericRecord getPostHookEvent(HookContext hookContext, EventStatus status) {
     QueryPlan plan = hookContext.getQueryPlan();
     LOG.info("Received post-hook notification for: {}", plan.getQueryId());
-
-    List<ExecDriver> mrTasks = Utilities.getMRTasks(plan.getRootTasks());
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
 
     GenericRecordBuilder recordBuilder =
         new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
@@ -138,50 +138,67 @@ public class EventRecordConstructor {
             .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
             .set("OperationId", hookContext.getOperationId());
 
-    dumpMapReduceCounters(mrTasks)
-        .ifPresent(counters -> recordBuilder.set("MapReduceCountersObject", counters));
-    dumpTezCounters(tezTasks)
-        .ifPresent(counters -> recordBuilder.set("TezCountersObject", counters));
+    dumpTezCounters(plan)
+        .map(Optional::of)
+        .orElseGet(EventRecordConstructor::dumpMapReduceCounters)
+        .ifPresent(counters -> recordBuilder.set("CountersObject", counters));
 
     return recordBuilder.build();
   }
 
-  private static Optional<String> dumpMapReduceCounters(List<ExecDriver> mrTasks) {
-    JSONArray counters =
-        new JSONArray(mrTasks.stream().map(ExecDriver::getCounters).collect(Collectors.toList()));
+  private static Optional<String> dumpMapReduceCounters() {
+    /*
+     {@link org.apache.hadoop.mapred.Counters} is deprecated.
+     If, for any reason, this becomes an issue in the future,
+     use {@link org.apache.hadoop.mapreduce.Counters}
+    */
+    List<Counters> list =
+        SessionState.get().getMapRedStats().values().stream()
+            .map(MapRedStats::getCounters)
+            .collect(Collectors.toList());
+    return generateCountersJson(list, c -> c.getName(), c -> c.getValue(), Group::getDisplayName);
+  }
 
-    return counters.length() > 0 ? Optional.of(counters.toString()) : Optional.empty();
+  private static Optional<String> dumpTezCounters(QueryPlan plan) {
+    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    List<TezCounters> list =
+        tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
+    return generateCountersJson(
+        list, TezCounter::getName, TezCounter::getValue, CounterGroup::getDisplayName);
   }
 
   /**
-   * Tez tasks counters is a deeply nested set of key - value pairs. This attempts to dump them as
-   * is, preserving their original structure.
+   * Counters are deeply nested sets of key - value pairs. This attempts to dump them as is,
+   * preserving their original structure.
    */
-  private static Optional<String> dumpTezCounters(List<TezTask> tezTasks) {
+  private static <C, G extends Iterable<C>> Optional<String> generateCountersJson(
+      List<? extends Iterable<G>> list,
+      Function<C, String> nameFn,
+      Function<C, Long> valueFn,
+      Function<G, String> displayNameFn) {
     JSONArray outerObj = new JSONArray();
 
-    for (TezTask tezTask : tezTasks) {
-      TezCounters tezCounters = tezTask.getTezCounters();
-      if (tezCounters == null) {
-        continue;
-      }
+    list.forEach(
+        counters -> {
+          if (counters == null) {
+            return;
+          }
 
-      JSONArray taskObj = new JSONArray();
+          JSONArray innerObj = new JSONArray();
+          counters.forEach(
+              counterGroup -> {
+                JSONObject groupCounters =
+                    new JSONObject(
+                        StreamSupport.stream(counterGroup.spliterator(), false)
+                            .collect(Collectors.toMap(nameFn, valueFn)));
+                JSONObject counterGroupData =
+                    new JSONObject().put(displayNameFn.apply(counterGroup), groupCounters);
 
-      tezCounters.forEach(
-          counterGroup -> {
-            JSONObject groupCounters =
-                new JSONObject(
-                    StreamSupport.stream(counterGroup.spliterator(), false)
-                        .collect(Collectors.toMap(TezCounter::getName, TezCounter::getValue)));
-            JSONObject counterGroupData =
-                new JSONObject().put(counterGroup.getDisplayName(), groupCounters);
+                innerObj.put(counterGroupData);
+              });
 
-            taskObj.put(counterGroupData);
-          });
-
-      outerObj.put(taskObj);
-    }
+          outerObj.put(innerObj);
+        });
 
     return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
   }
@@ -235,8 +252,14 @@ public class EventRecordConstructor {
     return requestUser == null ? hookContext.getUgi().getUserName() : requestUser;
   }
 
-  private static ExecutionMode getExecutionMode(List<ExecDriver> mrTasks, List<TezTask> tezTasks) {
-    if (tezTasks.size() > 0) {
+  private static ExecutionMode getExecutionMode(QueryPlan plan) {
+    // Utilities methods check for null, so possibly it is nullable
+    if (plan.getRootTasks() != null && plan.getRootTasks().isEmpty()) {
+      return ExecutionMode.CLIENT_ONLY;
+    }
+
+    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    if (!tezTasks.isEmpty()) {
       // Need to go in and check if any of the tasks is running in LLAP mode.
       for (TezTask tezTask : tezTasks) {
         if (tezTask.getWork().getLlapMode()) {
@@ -244,11 +267,21 @@ public class EventRecordConstructor {
         }
       }
       return ExecutionMode.TEZ;
-    } else if (mrTasks.size() > 0) {
-      return ExecutionMode.MR;
-    } else {
-      return ExecutionMode.NONE;
     }
+
+    if (!Utilities.getMRTasks(plan.getRootTasks()).isEmpty()) {
+      return ExecutionMode.MR;
+    }
+
+    if (!Utilities.getSparkTasks(plan.getRootTasks()).isEmpty()) {
+      return ExecutionMode.SPARK;
+    }
+
+    if (TasksRetriever.hasDdlTask(plan.getRootTasks())) {
+      return ExecutionMode.DDL;
+    }
+
+    return ExecutionMode.NONE;
   }
 
   private static String getQueueName(ExecutionMode mode, HiveConf conf) {
@@ -259,7 +292,6 @@ public class EventRecordConstructor {
         return conf.get(MR_QUEUE_NAME.getConfName());
       case TEZ:
         return conf.get(TEZ_QUEUE_NAME.getConfName());
-      case NONE:
       default:
         return null;
     }

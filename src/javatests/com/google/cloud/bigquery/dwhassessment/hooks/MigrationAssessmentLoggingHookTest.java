@@ -44,8 +44,7 @@ public class MigrationAssessmentLoggingHookTest {
 
   @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
+  @Rule public TemporaryFolder folder = new TemporaryFolder();
 
   @Mock Hive hiveMock;
 
@@ -60,6 +59,7 @@ public class MigrationAssessmentLoggingHookTest {
     tmpFolder = folder.newFolder().getAbsolutePath();
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
 
+    TestUtils.createDefaultSessionState(conf);
     queryState = new QueryState(conf);
     hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
   }
@@ -76,8 +76,6 @@ public class MigrationAssessmentLoggingHookTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+    assertThat(records).containsExactly(TestUtils.createPreExecRecordBuilder().build());
   }
-
-
 }

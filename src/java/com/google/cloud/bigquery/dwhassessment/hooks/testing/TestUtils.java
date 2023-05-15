@@ -26,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData.Record;
@@ -47,6 +48,7 @@ import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
+import org.apache.hadoop.hive.ql.session.SessionState;
 
 /** Common utils for testing */
 public final class TestUtils {
@@ -55,22 +57,23 @@ public final class TestUtils {
   public static final String DEFAULT_QUERY_TEXT = "SELECT * FROM employees";
   public static final String DEFAULT_QUERY_ID = "hive_query_id_999";
 
-  private TestUtils() {
-  }
+  private TestUtils() {}
 
-  public static QueryState createDefaultQueryState() {
-    return new QueryState(new HiveConf());
+  public static SessionState createDefaultSessionState(HiveConf conf) {
+    SessionState state = new SessionState(conf);
+    state.setMapRedStats(new HashMap<>());
+    SessionState.setCurrentSessionState(state);
+    return state;
   }
 
   public static QueryPlan createDefaultQueryPlan(Hive hive, QueryState state)
       throws SemanticException {
     BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(state, hive);
-    return new QueryPlan(DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID,
-        HiveOperation.QUERY, null);
+    return new QueryPlan(
+        DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID, HiveOperation.QUERY, null);
   }
 
-  public static HookContext createDefaultHookContext(Hive hive, QueryState state)
-      throws Exception {
+  public static HookContext createDefaultHookContext(Hive hive, QueryState state) throws Exception {
     QueryPlan plan = createDefaultQueryPlan(hive, state);
     return createDefaultHookContext(plan, state);
   }
@@ -96,19 +99,18 @@ public final class TestUtils {
     return Clock.fixed(Instant.ofEpochMilli(QUERY_END_TIME), ZoneOffset.UTC);
   }
 
-  public static Record createPreExecRecord() {
+  public static GenericRecordBuilder createPreExecRecordBuilder() {
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", TestUtils.DEFAULT_QUERY_ID)
         .set("QueryType", "QUERY")
         .set("QueryText", TestUtils.DEFAULT_QUERY_TEXT)
         .set("EventType", "QUERY_SUBMITTED")
-        .set("ExecutionMode", "NONE")
+        .set("ExecutionMode", "CLIENT_ONLY")
+        .set("ExecutionEngine", "mr")
         .set("StartTime", 1234L)
         .set("RequestUser", "test_user")
         .set("UserName", System.getProperty("user.name"))
         .set("SessionId", "test_session_id")
-        .set("IsTez", false)
-        .set("IsMapReduce", false)
         .set("InvokerInfo", "test_session_id")
         .set("ThreadName", "test_thread_id")
         .set("HookVersion", "1.0")
@@ -116,7 +118,7 @@ public final class TestUtils {
         .set("HiveAddress", "hive_addr")
         .set("HiveInstanceType", "HS2")
         .set("OperationId", "test_op_id")
-        .build();
+        .set("DefaultDatabase", "default");
   }
 
   public static Record createPostExecRecord(EventStatus status) {
@@ -140,7 +142,8 @@ public final class TestUtils {
 
     ImmutableList<FileStatus> directories = ImmutableList.copyOf(fs.listStatus(path));
     assertThat(directories).hasSize(1);
-    ImmutableList<FileStatus> files =  ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
+    ImmutableList<FileStatus> files =
+        ImmutableList.copyOf(fs.listStatus(directories.get(0).getPath()));
     assertThat(files).hasSize(1);
 
     FSDataInputStream inputStream = fs.open(files.get(0).getPath());

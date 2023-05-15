@@ -14,6 +14,18 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+http_archive(
+    name = "rules_java",
+    sha256 = "bcfabfb407cb0c8820141310faa102f7fb92cc806b0f0e26a625196101b0b57e",
+    urls = [
+        "https://github.com/bazelbuild/rules_java/releases/download/5.5.0/rules_java-5.5.0.tar.gz",
+    ],
+)
+
+load("@rules_java//java:repositories.bzl", "remote_jdk8_repos")
+
+remote_jdk8_repos()
+
 RULES_JVM_EXTERNAL_TAG = "4.0"
 
 RULES_JVM_EXTERNAL_SHA = "31701ad93dbfe544d597dbe62c9a1fdd76d81d8a9150c2bf1ecf928ecdf97169"
@@ -86,6 +98,12 @@ maven_install(
             neverlink = True,
         ),
         maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-mapred",
+            "0.22.0",
+            neverlink = True,
+        ),
+        maven.artifact(
             "org.slf4j",
             "slf4j-api",
             "1.7.10",
@@ -113,6 +131,7 @@ maven_install(
         "org.apache.hadoop:hadoop-mapreduce-client-common:2.9.0",
         "org.apache.hadoop:hadoop-mapreduce-client-core:2.9.0",
         "org.apache.hive:hive-exec:2.2.0",
+        "org.apache.hadoop:hadoop-mapred:0.22.0",
         "org.apache.tez:tez-api:0.8.5",
         "org.apache.tez:tez-common:0.8.5",
         "commons-lang:commons-lang:2.6",

@@ -59,6 +59,7 @@ public class EventLoggerTest {
     conf.set(LoggerVarsConfig.HIVE_QUERY_EVENTS_BASE_PATH.getConfName(), tmpFolder);
 
     queryState = new QueryState(conf);
+    TestUtils.createDefaultSessionState(conf);
     hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
 
     logger = new EventLogger(conf, TestUtils.createFixedClock());
@@ -75,7 +76,7 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPreExecRecord());
+    assertThat(records).containsExactly(TestUtils.createPreExecRecordBuilder().build());
   }
 
   @Test
@@ -101,6 +102,6 @@ public class EventLoggerTest {
 
     // Assert
     List<GenericRecord> records = TestUtils.readOutputRecords(conf, tmpFolder);
-    assertThat(records).containsExactly(TestUtils.createPostExecRecord(EventStatus.FAIL));;
+    assertThat(records).containsExactly(TestUtils.createPostExecRecord(EventStatus.FAIL));
   }
 }
