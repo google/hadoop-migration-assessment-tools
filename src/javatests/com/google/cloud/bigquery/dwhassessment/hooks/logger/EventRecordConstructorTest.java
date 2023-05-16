@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.generic.GenericRecord;
@@ -342,7 +341,6 @@ public class EventRecordConstructorTest {
 
   @AutoValue
   abstract static class ExecutionModeTestCase {
-
     abstract String executionMode();
 
     abstract ImmutableList<Task<? extends Serializable>> tasks();
@@ -357,7 +355,6 @@ public class EventRecordConstructorTest {
   /** Component that simplifies {@link Counters} and {@link TezCounters} setup. */
   @AutoValue
   abstract static class CountersHolder {
-
     abstract ImmutableList<CountersGroupHolder> groups();
 
     public static Builder builder() {
@@ -367,7 +364,6 @@ public class EventRecordConstructorTest {
     /** Builder for {@link CountersHolder} */
     @AutoValue.Builder
     abstract static class Builder {
-
       abstract ImmutableList.Builder<CountersGroupHolder> groupsBuilder();
 
       public final Builder addGroup(CountersGroupHolder value) {
