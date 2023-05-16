@@ -27,9 +27,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
@@ -63,9 +69,20 @@ import org.mockito.junit.MockitoRule;
 @RunWith(Theories.class)
 public class EventRecordConstructorTest {
 
-  @Rule public MockitoRule mocks = MockitoJUnit.rule();
+  @Rule
+  public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Mock Hive hiveMock;
+  @Mock
+  Hive hiveMock;
+  @Mock
+  org.apache.hadoop.hive.metastore.api.Partition europePartition;
+  @Mock
+  org.apache.hadoop.hive.metastore.api.Partition asiaPartition;
+  @Mock
+  org.apache.hadoop.hive.metastore.api.Table mockTable;
+  @Mock
+  StorageDescriptor sd;
+  // @Mock Table mockTable;
 
   private EventRecordConstructor eventRecordConstructor;
 
@@ -96,6 +113,33 @@ public class EventRecordConstructorTest {
 
     // Assert
     assertThat(record).hasValue(TestUtils.createPreExecRecordBuilder().build());
+  }
+
+  @Test
+  public void preExecHook_shouldRetrievePartitions() throws Exception {
+    Set<String> expectedPartitions = new HashSet<>();
+    expectedPartitions.add("dbName@tableName@continent=Europe");
+    expectedPartitions.add("dbName@tableName@continent=Asia");
+    when(mockTable.getTableName()).thenReturn("tableName");
+    when(mockTable.getDbName()).thenReturn("dbName");
+    when(mockTable.getTableType()).thenReturn(TableType.MANAGED_TABLE.toString());
+    when(mockTable.getPartitionKeys()).thenReturn(
+        Collections.singletonList(new FieldSchema("continent", "string", null)));
+    when(europePartition.getValues()).thenReturn(Collections.singletonList("Europe"));
+    when(europePartition.getSd()).thenReturn(sd);
+    when(asiaPartition.getValues()).thenReturn(Collections.singletonList("Asia"));
+    when(asiaPartition.getSd()).thenReturn(sd);
+    when(sd.getLocation()).thenReturn("location");
+    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+    hookContext.setQueryPlan(TestUtils.createQueryPlanWithPartitions(hiveMock, queryState,
+        ImmutableList.of(europePartition, asiaPartition), mockTable));
+    queryState.setCommandType(HiveOperation.QUERY);
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat(record.get("PartitionsRead")).isEqualTo(expectedPartitions);
   }
 
   @DataPoints("ExecutionModes")
@@ -286,6 +330,7 @@ public class EventRecordConstructorTest {
 
   @AutoValue
   abstract static class ExecutionModeTestCase {
+
     abstract String executionMode();
 
     abstract ImmutableList<Task<? extends Serializable>> tasks();
@@ -297,18 +342,24 @@ public class EventRecordConstructorTest {
     }
   }
 
-  /** Component that simplifies {@link Counters} and {@link TezCounters} setup. */
+  /**
+   * Component that simplifies {@link Counters} and {@link TezCounters} setup.
+   */
   @AutoValue
   abstract static class CountersHolder {
+
     abstract ImmutableList<CountersGroupHolder> groups();
 
     public static Builder builder() {
       return new AutoValue_EventRecordConstructorTest_CountersHolder.Builder();
     }
 
-    /** Builder for {@link CountersHolder} */
+    /**
+     * Builder for {@link CountersHolder}
+     */
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract ImmutableList.Builder<CountersGroupHolder> groupsBuilder();
 
       public final Builder addGroup(CountersGroupHolder value) {
@@ -320,7 +371,9 @@ public class EventRecordConstructorTest {
     }
   }
 
-  /** Component that simplifies {@link Counters.Group} and {@link CounterGroup} setup. */
+  /**
+   * Component that simplifies {@link Counters.Group} and {@link CounterGroup} setup.
+   */
   @AutoValue
   abstract static class CountersGroupHolder {
 
@@ -332,7 +385,9 @@ public class EventRecordConstructorTest {
       return new AutoValue_EventRecordConstructorTest_CountersGroupHolder.Builder();
     }
 
-    /** Builder for {@link CountersGroupHolder} */
+    /**
+     * Builder for {@link CountersGroupHolder}
+     */
     @AutoValue.Builder
     abstract static class Builder {
 
