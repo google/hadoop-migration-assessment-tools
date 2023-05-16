@@ -69,20 +69,9 @@ import org.mockito.junit.MockitoRule;
 @RunWith(Theories.class)
 public class EventRecordConstructorTest {
 
-  @Rule
-  public MockitoRule mocks = MockitoJUnit.rule();
+  @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
-  @Mock
-  Hive hiveMock;
-  @Mock
-  org.apache.hadoop.hive.metastore.api.Partition europePartition;
-  @Mock
-  org.apache.hadoop.hive.metastore.api.Partition asiaPartition;
-  @Mock
-  org.apache.hadoop.hive.metastore.api.Table mockTable;
-  @Mock
-  StorageDescriptor sd;
-  // @Mock Table mockTable;
+  @Mock Hive hiveMock;
 
   private EventRecordConstructor eventRecordConstructor;
 
@@ -116,30 +105,40 @@ public class EventRecordConstructorTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void preExecHook_shouldRetrievePartitions() throws Exception {
-    Set<String> expectedPartitions = new HashSet<>();
-    expectedPartitions.add("dbName@tableName@continent=Europe");
-    expectedPartitions.add("dbName@tableName@continent=Asia");
+    org.apache.hadoop.hive.metastore.api.Partition europePartition =
+        mock(org.apache.hadoop.hive.metastore.api.Partition.class);
+    org.apache.hadoop.hive.metastore.api.Partition asiaPartition =
+        mock(org.apache.hadoop.hive.metastore.api.Partition.class);
+    org.apache.hadoop.hive.metastore.api.Table mockTable =
+        mock(org.apache.hadoop.hive.metastore.api.Table.class);
+    StorageDescriptor sd = mock(StorageDescriptor.class);
+
     when(mockTable.getTableName()).thenReturn("tableName");
     when(mockTable.getDbName()).thenReturn("dbName");
     when(mockTable.getTableType()).thenReturn(TableType.MANAGED_TABLE.toString());
-    when(mockTable.getPartitionKeys()).thenReturn(
-        Collections.singletonList(new FieldSchema("continent", "string", null)));
+    when(mockTable.getPartitionKeys())
+        .thenReturn(Collections.singletonList(new FieldSchema("continent", "string", null)));
     when(europePartition.getValues()).thenReturn(Collections.singletonList("Europe"));
     when(europePartition.getSd()).thenReturn(sd);
     when(asiaPartition.getValues()).thenReturn(Collections.singletonList("Asia"));
     when(asiaPartition.getSd()).thenReturn(sd);
     when(sd.getLocation()).thenReturn("location");
     hookContext.setHookType(HookType.PRE_EXEC_HOOK);
-    hookContext.setQueryPlan(TestUtils.createQueryPlanWithPartitions(hiveMock, queryState,
-        ImmutableList.of(europePartition, asiaPartition), mockTable));
+    hookContext.setQueryPlan(
+        TestUtils.createQueryPlanWithPartitions(
+            hiveMock, queryState, ImmutableList.of(europePartition, asiaPartition), mockTable));
     queryState.setCommandType(HiveOperation.QUERY);
 
     // Act
     GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
 
     // Assert
-    assertThat(record.get("PartitionsRead")).isEqualTo(expectedPartitions);
+    assertThat((Set<String>) record.get("PartitionsRead"))
+        .containsExactly("dbName@tableName@continent=Europe", "dbName@tableName@continent=Asia");
+    assertThat((Set<String>) record.get("PartitionsWritten"))
+        .containsExactly("dbName@tableName@continent=Europe", "dbName@tableName@continent=Asia");
   }
 
   @DataPoints("ExecutionModes")
@@ -355,9 +354,7 @@ public class EventRecordConstructorTest {
     }
   }
 
-  /**
-   * Component that simplifies {@link Counters} and {@link TezCounters} setup.
-   */
+  /** Component that simplifies {@link Counters} and {@link TezCounters} setup. */
   @AutoValue
   abstract static class CountersHolder {
 
@@ -367,9 +364,7 @@ public class EventRecordConstructorTest {
       return new AutoValue_EventRecordConstructorTest_CountersHolder.Builder();
     }
 
-    /**
-     * Builder for {@link CountersHolder}
-     */
+    /** Builder for {@link CountersHolder} */
     @AutoValue.Builder
     abstract static class Builder {
 
@@ -384,9 +379,7 @@ public class EventRecordConstructorTest {
     }
   }
 
-  /**
-   * Component that simplifies {@link Counters.Group} and {@link CounterGroup} setup.
-   */
+  /** Component that simplifies {@link Counters.Group} and {@link CounterGroup} setup. */
   @AutoValue
   abstract static class CountersGroupHolder {
 
@@ -398,9 +391,7 @@ public class EventRecordConstructorTest {
       return new AutoValue_EventRecordConstructorTest_CountersGroupHolder.Builder();
     }
 
-    /**
-     * Builder for {@link CountersGroupHolder}
-     */
+    /** Builder for {@link CountersGroupHolder} */
     @AutoValue.Builder
     abstract static class Builder {
 
