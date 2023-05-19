@@ -50,6 +50,7 @@ import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
+import org.apache.hive.common.util.HiveVersionInfo;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -110,6 +111,7 @@ public class EventRecordConstructor {
         .set("ClientIpAddress", hookContext.getIpAddress())
         .set("ClientIpAddress", hookContext.getIpAddress())
         .set("HookVersion", HOOK_VERSION)
+        .set("HiveVersion", HiveVersionInfo.getVersion())
         .set("HiveAddress", getHiveInstanceAddress(hookContext))
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("LlapApplicationId", determineLlapId(conf, executionMode))

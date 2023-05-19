@@ -114,6 +114,7 @@ public final class TestUtils {
         .set("InvokerInfo", "test_session_id")
         .set("ThreadName", "test_thread_id")
         .set("HookVersion", "1.0")
+        .set("HiveVersion", "2.2.0")
         .set("ClientIpAddress", "192.168.10.10")
         .set("HiveAddress", "hive_addr")
         .set("HiveInstanceType", "HS2")
