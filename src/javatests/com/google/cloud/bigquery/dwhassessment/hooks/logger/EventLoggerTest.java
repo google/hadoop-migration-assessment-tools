@@ -21,6 +21,8 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
@@ -63,6 +65,22 @@ public class EventLoggerTest {
     hookContext = TestUtils.createDefaultHookContext(hiveMock, queryState);
 
     logger = new EventLogger(conf, TestUtils.createFixedClock());
+  }
+
+  @Test
+  public void handle_disableLoggingWhenDirectoryIsNotSet() throws Exception {
+    logger = new EventLogger(new HiveConf(), TestUtils.createFixedClock());
+    hookContext.setHookType(HookType.PRE_EXEC_HOOK);
+    queryState.setCommandType(HiveOperation.QUERY);
+    Path path = new Path(tmpFolder);
+    FileSystem fs = path.getFileSystem(conf);
+
+    // Act
+    logger.handle(hookContext);
+    logger.shutdown();
+
+    // Assert
+    assertThat(fs.listStatus(path)).isEmpty();
   }
 
   @Test

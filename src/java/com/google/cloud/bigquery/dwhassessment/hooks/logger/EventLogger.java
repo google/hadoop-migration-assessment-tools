@@ -67,6 +67,8 @@ public class EventLogger {
   private final int queueCapacity;
   private final String loggerId;
 
+  private final boolean loggingEnabled;
+
   // Singleton using DCL.
   private static volatile EventLogger instance;
 
@@ -101,6 +103,7 @@ public class EventLogger {
     recordsWriterFactory = createRecordsWriterFactory(baseDir, conf, clock);
     if (!isHiveVersionSupported(getHiveVersion()) || recordsWriterFactory == null) {
       logWriter = null;
+      loggingEnabled = false;
       return;
     }
 
@@ -124,10 +127,11 @@ public class EventLogger {
 
     LOG.info(
         "Logger successfully started, waiting for query events. Log directory is '{}'", baseDir);
+    loggingEnabled = true;
   }
 
   public void handle(HookContext hookContext) {
-    if (recordsWriterFactory == null) {
+    if (recordsWriterFactory == null || !loggingEnabled) {
       return;
     }
     // Note: same hookContext object is used for all the events for a given query, if we try to
@@ -238,6 +242,8 @@ public class EventLogger {
         LOG.warn("Got interrupted exception while waiting for events to be flushed", e);
       }
     }
-    recordsWriterFactory.close();
+    if (recordsWriterFactory != null) {
+      recordsWriterFactory.close();
+    }
   }
 }
