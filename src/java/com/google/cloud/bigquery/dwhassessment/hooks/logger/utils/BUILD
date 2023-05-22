@@ -21,5 +21,6 @@ java_library(
     deps = [
         "@maven//:commons_lang_commons_lang",
         "@maven//:org_apache_hive_hive_exec_2_2_0",
+        "@maven//:org_slf4j_slf4j_api",
     ],
 )
