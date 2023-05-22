@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -105,6 +104,8 @@ public class EventRecordConstructor {
         .set("Queue", getQueueName(executionMode, conf))
         .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
         .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
+        .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
+        .set("PartitionsWritten", getPartitionsFromEntitySet(plan.getOutputs()))
         .set("SessionId", hookContext.getSessionId())
         .set("InvokerInfo", conf.getLogIdVar(hookContext.getSessionId()))
         .set("ThreadName", hookContext.getThreadId())
@@ -214,14 +215,24 @@ public class EventRecordConstructor {
     return perfObj.toString();
   }
 
-  private static List<String> getTablesFromEntitySet(Set<? extends Entity> entities) {
-    List<String> tableNames = new ArrayList<>();
+  private static Set<String> getTablesFromEntitySet(Set<? extends Entity> entities) {
+    Set<String> tableNames = new HashSet<>();
     for (Entity entity : entities) {
-      if (entity.getType() == TABLE || entity.getType() == PARTITION) {
+      if (entity.getType() == TABLE) {
         tableNames.add(entity.getTable().getCompleteName());
       }
     }
     return tableNames;
+  }
+
+  private static Set<String> getPartitionsFromEntitySet(Set<? extends Entity> entities) {
+    Set<String> partitionNames = new HashSet<>();
+    for (Entity entity : entities) {
+      if (entity.getType() == PARTITION) {
+        partitionNames.add(entity.getPartition().getCompleteName());
+      }
+    }
+    return partitionNames;
   }
 
   private static Set<String> getDatabasesFromEntitySet(Set<? extends Entity> entities) {

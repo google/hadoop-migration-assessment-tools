@@ -125,6 +125,26 @@
       "default": []
     },
     {
+      "name": "PartitionsRead",
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": []
+    },
+    {
+      "name": "PartitionsWritten",
+      "type": [
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": []
+    },
+    {
       "name": "Status",
       "type": [
         "null",

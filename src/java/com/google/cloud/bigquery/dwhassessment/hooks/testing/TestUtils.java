@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData.Record;
@@ -39,11 +40,17 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
+import org.apache.hadoop.hive.ql.hooks.ReadEntity;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity.WriteType;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -71,6 +78,32 @@ public final class TestUtils {
     BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(state, hive);
     return new QueryPlan(
         DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID, HiveOperation.QUERY, null);
+  }
+
+  public static QueryPlan createQueryPlanWithPartitions(
+      Hive hive,
+      QueryState state,
+      ImmutableList<org.apache.hadoop.hive.metastore.api.Partition> mockedPartitions,
+      org.apache.hadoop.hive.metastore.api.Table mockTable)
+      throws Exception {
+    BaseSemanticAnalyzer sem = new DDLSemanticAnalyzer(state, hive);
+    QueryPlan qp =
+        new QueryPlan(DEFAULT_QUERY_TEXT, sem, 1234L, DEFAULT_QUERY_ID, HiveOperation.QUERY, null);
+
+    Table table = new Table(mockTable);
+    table.setTableType(TableType.MANAGED_TABLE);
+    HashSet<ReadEntity> readEntities = new HashSet<>();
+    HashSet<WriteEntity> writeEntities = new HashSet<>();
+    for (org.apache.hadoop.hive.metastore.api.Partition mockedPartition : mockedPartitions) {
+      Partition partition = new Partition(table, mockedPartition);
+      ReadEntity readEntity = new ReadEntity(partition);
+      readEntities.add(readEntity);
+      WriteEntity writeEntity = new WriteEntity(partition, WriteType.INSERT);
+      writeEntities.add(writeEntity);
+    }
+    qp.setInputs(readEntities);
+    qp.setOutputs(writeEntities);
+    return qp;
   }
 
   public static HookContext createDefaultHookContext(Hive hive, QueryState state) throws Exception {
