@@ -209,6 +209,14 @@
       "default": null
     },
     {
+      "name": "HiveVersion",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
       "name": "ClientIpAddress",
       "type": [
         "null",
