@@ -44,3 +44,12 @@ java_test(
         ":tests",
     ],
 )
+
+java_test(
+    name = "VersionValidatorTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidatorTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)

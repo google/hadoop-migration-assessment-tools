@@ -19,6 +19,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.TEZ_QUEUE_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.HOOK_VERSION;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.DATABASE;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
@@ -50,7 +51,6 @@ import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
-import org.apache.hive.common.util.HiveVersionInfo;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -111,7 +111,7 @@ public class EventRecordConstructor {
         .set("ClientIpAddress", hookContext.getIpAddress())
         .set("ClientIpAddress", hookContext.getIpAddress())
         .set("HookVersion", HOOK_VERSION)
-        .set("HiveVersion", HiveVersionInfo.getVersion())
+        .set("HiveVersion", getHiveVersion())
         .set("HiveAddress", getHiveInstanceAddress(hookContext))
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("LlapApplicationId", determineLlapId(conf, executionMode))

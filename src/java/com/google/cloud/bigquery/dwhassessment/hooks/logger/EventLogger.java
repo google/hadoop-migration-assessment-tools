@@ -21,6 +21,8 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
@@ -86,6 +88,7 @@ public class EventLogger {
     queueCapacity =
         conf.getInt(
             HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName(), QUERY_EVENTS_QUEUE_DEFAULT_SIZE);
+
     String baseDir = conf.get(HIVE_QUERY_EVENTS_BASE_PATH.getConfName());
 
     if (StringUtils.isBlank(baseDir)) {
@@ -96,7 +99,7 @@ public class EventLogger {
     }
 
     recordsWriterFactory = createRecordsWriterFactory(baseDir, conf, clock);
-    if (recordsWriterFactory == null) {
+    if (!isHiveVersionSupported(getHiveVersion()) || recordsWriterFactory == null) {
       logWriter = null;
       return;
     }
