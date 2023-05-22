@@ -45,7 +45,7 @@ public class VersionValidatorTest {
   public void isHiveVersionSupported_rejectsInvalidVersions() {
     assertThat(VersionValidator.isHiveVersionSupported("unexpected")).isFalse();
     assertThat(VersionValidator.isHiveVersionSupported("5")).isFalse();
-    assertThat(VersionValidator.isHiveVersionSupported("4.1abc")).isFalse();
+    assertThat(VersionValidator.isHiveVersionSupported("3.abc1")).isFalse();
   }
 
   @Test

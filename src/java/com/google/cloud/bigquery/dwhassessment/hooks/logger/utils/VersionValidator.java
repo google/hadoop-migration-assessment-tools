@@ -36,8 +36,6 @@ public class VersionValidator {
    * href="http://go/gh/apache/hive/blob/rel/release-2.2.0/pom.xml#L64">tag source</a>.
    */
   public static String getHiveVersion() {
-    // getShortVersion() is unreliable. For 2.2.0 package it is 2.1.0 –
-    // http://go/gh/apache/hive/blob/rel/release-2.2.0/pom.xml#L64
     return HiveVersionInfo.getVersion();
   }
 
