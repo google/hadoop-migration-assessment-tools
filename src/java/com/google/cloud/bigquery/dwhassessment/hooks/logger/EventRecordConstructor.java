@@ -159,10 +159,7 @@ public class EventRecordConstructor {
         .orElseGet(EventRecordConstructor::dumpMapReduceCounters)
         .ifPresent(counters -> recordBuilder.set("CountersObject", counters));
 
-    // return recordBuilder.build();
-    GenericRecord r = recordBuilder.build();
-    LOG.info("%%% {}", r);
-    return r;
+    return recordBuilder.build();
   }
 
   private Optional<String> retrieveRealQueueName(HiveConf conf, ApplicationId applicationId) {
@@ -170,15 +167,11 @@ public class EventRecordConstructor {
       yarnClient.init(conf);
       yarnClient.start();
       ApplicationReport applicationReport = yarnClient.getApplicationReport(applicationId);
-      LOG.info(
-          "::: Client is {}, app id is {}, app report {}",
-          yarnClient,
-          applicationId,
-          applicationReport);
       yarnClient.stop();
+
       return Optional.of(applicationReport.getQueue());
     } catch (IOException | YarnException e) {
-      LOG.info("Can not retrieve application report for Application ID '{}'", applicationId);
+      LOG.warn("Can not retrieve application report for Application ID '{}'", applicationId);
       return Optional.empty();
     }
   }
@@ -321,7 +314,6 @@ public class EventRecordConstructor {
     return ExecutionMode.NONE;
   }
 
-  // TODO: add a new column for that
   private static String getSupposedQueueName(ExecutionMode mode, HiveConf conf) {
     switch (mode) {
       case LLAP:
