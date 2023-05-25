@@ -68,6 +68,24 @@ maven_install(
             neverlink = True,
         ),
         maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-yarn-common",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-yarn-api",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-yarn-client",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
             "org.apache.avro",
             "avro",
             "1.10.2",
@@ -101,6 +119,12 @@ maven_install(
             "org.apache.hadoop",
             "hadoop-mapred",
             "0.22.0",
+            neverlink = True,
+        ),
+        maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-mapreduce-client-common",
+            "2.2.0",
             neverlink = True,
         ),
         maven.artifact(

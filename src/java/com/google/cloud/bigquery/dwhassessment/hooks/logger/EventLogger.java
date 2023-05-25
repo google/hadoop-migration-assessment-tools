@@ -145,6 +145,7 @@ public class EventLogger {
   }
 
   private void tryWriteEvent(GenericRecord event, HookType hookType) {
+    LOG.info("$$$ Writing an event {}", event);
     try {
       // ScheduledThreadPoolExecutor uses an unbounded queue which cannot be replaced with a
       // bounded queue.
