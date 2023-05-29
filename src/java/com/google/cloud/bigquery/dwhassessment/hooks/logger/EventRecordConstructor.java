@@ -25,7 +25,6 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
@@ -39,7 +38,6 @@ import java.util.stream.StreamSupport;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
 import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.exec.Utilities;
@@ -50,6 +48,8 @@ import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -64,9 +64,11 @@ public class EventRecordConstructor {
   private static final Logger LOG = LoggerFactory.getLogger(EventRecordConstructor.class);
 
   private final Clock clock;
+  private final YarnApplicationRetriever yarnApplicationRetriever;
 
-  public EventRecordConstructor(Clock clock) {
+  public EventRecordConstructor(Clock clock, YarnApplicationRetriever yarnApplicationRetriever) {
     this.clock = clock;
+    this.yarnApplicationRetriever = yarnApplicationRetriever;
   }
 
   /** Constructs a record with information specific to a hook type */
@@ -101,7 +103,7 @@ public class EventRecordConstructor {
         .set("RequestUser", getRequestUser(hookContext))
         .set("ExecutionMode", executionMode.name())
         .set("ExecutionEngine", conf.get("hive.execution.engine"))
-        .set("Queue", getQueueName(executionMode, conf))
+        .set("Queue", retrieveSessionQueueName(conf, executionMode))
         .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
         .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
         .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
@@ -115,7 +117,6 @@ public class EventRecordConstructor {
         .set("HiveVersion", getHiveVersion())
         .set("HiveAddress", getHiveInstanceAddress(hookContext))
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
-        .set("LlapApplicationId", determineLlapId(conf, executionMode))
         .set("OperationId", hookContext.getOperationId())
         .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
         .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
@@ -126,6 +127,8 @@ public class EventRecordConstructor {
   private GenericRecord getPostHookEvent(HookContext hookContext, EventStatus status) {
     QueryPlan plan = hookContext.getQueryPlan();
     LOG.info("Received post-hook notification for: {}", plan.getQueryId());
+    // Make a copy so that we do not modify hookContext conf.
+    HiveConf conf = new HiveConf(hookContext.getConf());
 
     GenericRecordBuilder recordBuilder =
         new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
@@ -140,6 +143,14 @@ public class EventRecordConstructor {
             .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
             .set("OperationId", hookContext.getOperationId());
 
+    ApplicationIdRetriever.determineApplicationId(conf, getExecutionMode(plan))
+        .ifPresent(
+            applicationId -> {
+              recordBuilder.set("YarnApplicationId", applicationId.toString());
+              retrieveYarnQueueName(conf, applicationId)
+                  .ifPresent(queue -> recordBuilder.set("Queue", queue));
+            });
+
     dumpTezCounters(plan)
         .map(Optional::of)
         .orElseGet(EventRecordConstructor::dumpMapReduceCounters)
@@ -148,12 +159,39 @@ public class EventRecordConstructor {
     return recordBuilder.build();
   }
 
+  /** Retrieves YARN queue name from the YARN application, associated with the query. */
+  private Optional<String> retrieveYarnQueueName(HiveConf conf, ApplicationId applicationId) {
+    return yarnApplicationRetriever.retrieve(conf, applicationId).map(ApplicationReport::getQueue);
+  }
+
+  /**
+   * Retrieves YARN queue name where query is supposed to land. It might be different in reality,
+   * depending on YARN configuration.
+   *
+   * <p>In combination with {@link EventRecordConstructor#retrieveYarnQueueName(HiveConf,
+   * ApplicationId)} it makes the best effort in extracting the query queue name.
+   */
+  private static String retrieveSessionQueueName(HiveConf conf, ExecutionMode mode) {
+    switch (mode) {
+      case LLAP:
+        return conf.get(HiveConf.ConfVars.LLAP_DAEMON_QUEUE_NAME.varname);
+      case MR:
+        return conf.get(MR_QUEUE_NAME.getConfName());
+      case TEZ:
+        return conf.get(TEZ_QUEUE_NAME.getConfName());
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Dumps MapReduce jobs counters. For one query, there can be multiple map reduce jobs.
+   *
+   * <p>Note: {@link org.apache.hadoop.mapred.Counters} is deprecated. If, for any reason, this
+   * becomes an issue in the future, use {@link org.apache.hadoop.mapreduce.Counters}
+   */
   private static Optional<String> dumpMapReduceCounters() {
-    /*
-     {@link org.apache.hadoop.mapred.Counters} is deprecated.
-     If, for any reason, this becomes an issue in the future,
-     use {@link org.apache.hadoop.mapreduce.Counters}
-    */
+
     List<Counters> list =
         SessionState.get().getMapRedStats().values().stream()
             .map(MapRedStats::getCounters)
@@ -286,19 +324,6 @@ public class EventRecordConstructor {
     return ExecutionMode.NONE;
   }
 
-  private static String getQueueName(ExecutionMode mode, HiveConf conf) {
-    switch (mode) {
-      case LLAP:
-        return conf.get(HiveConf.ConfVars.LLAP_DAEMON_QUEUE_NAME.varname);
-      case MR:
-        return conf.get(MR_QUEUE_NAME.getConfName());
-      case TEZ:
-        return conf.get(TEZ_QUEUE_NAME.getConfName());
-      default:
-        return null;
-    }
-  }
-
   private static String getHiveInstanceAddress(HookContext hookContext) {
     String hiveInstanceAddress = hookContext.getHiveInstanceAddress();
     if (hiveInstanceAddress == null) {
@@ -313,26 +338,5 @@ public class EventRecordConstructor {
 
   private static String getHiveInstanceType(HookContext hookContext) {
     return hookContext.isHiveServerQuery() ? "HS2" : "CLI";
-  }
-
-  private static String determineLlapId(HiveConf conf, ExecutionMode mode) {
-    // Note: for now, LLAP is only supported in Tez tasks. Will never come to MR; others may
-    // be added here, although this is only necessary to have extra debug information.
-    if (mode == ExecutionMode.LLAP) {
-      // In HS2, the client should have been cached already for the common case.
-      // Otherwise, this may actually introduce delay to compilation for the first query.
-      String hosts = HiveConf.getVar(conf, HiveConf.ConfVars.LLAP_DAEMON_SERVICE_HOSTS);
-      if (hosts != null && !hosts.isEmpty()) {
-        try {
-          return LlapRegistryService.getClient(conf).getApplicationId().toString();
-        } catch (IOException e) {
-          LOG.error("Error trying to get llap instance. Hosts: {}", hosts, e);
-        }
-      } else {
-        LOG.info("Cannot determine LLAP instance on client - service hosts are not set");
-      }
-    }
-
-    return null;
   }
 }

@@ -36,7 +36,6 @@ import java.time.temporal.ChronoUnit;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -107,8 +106,7 @@ public class DatePartitionedRecordsWriterFactory {
       currentWriter.flush();
     } catch (IOException e) {
       // Something wrong with writer – close and reopen.
-      IOUtils.closeQuietly(currentWriter);
-      currentWriter = null;
+      close();
 
       throw new UncheckedIOException("Exception during writing query event", e);
     }
@@ -121,19 +119,27 @@ public class DatePartitionedRecordsWriterFactory {
       rolloverTime = calculateNextRolloverTime();
 
       LOG.info(
-          "Rolling over file for logger ID '{}'. Next rollover is expected at '{}'",
+          "Updated rollover time for logger ID '{}' to '{}'",
           loggerId,
           ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
     } else {
       LOG.debug(
           "Performed rollover check for logger ID '{}'. Expected rollover time is '{}'",
           loggerId,
-          rolloverTime);
+          ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
     }
   }
 
   public void close() {
-    IOUtils.closeQuietly(currentWriter);
+    if (currentWriter != null) {
+      try {
+        currentWriter.close();
+        LOG.info("Closed file '{}' for logger ID '{}'", currentWriter.getPath(), loggerId);
+      } catch (IOException e) {
+        LOG.error("Failed to close writer for file '{}'", currentWriter.getPath(), e);
+      }
+    }
+
     currentWriter = null;
   }
 

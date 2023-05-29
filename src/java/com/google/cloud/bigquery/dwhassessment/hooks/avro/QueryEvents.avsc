@@ -241,7 +241,7 @@
       "default": null
     },
     {
-      "name": "LlapApplicationId",
+      "name": "YarnApplicationId",
       "type": [
         "null",
         "string"

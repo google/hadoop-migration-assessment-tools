@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.QueryState;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
@@ -189,5 +190,14 @@ public final class TestUtils {
       dataFileReader.forEach(records::add);
       return records;
     }
+  }
+
+  public static MapRedStats createMapRedStats(String jobId) {
+    return new MapRedStats(
+        /* numMap= */ 0,
+        /* numReduce= */ 0,
+        /* cpuMSec= */ 0L,
+        /* ifSuccess= */ true,
+        jobId);
   }
 }

@@ -68,6 +68,24 @@ maven_install(
             neverlink = True,
         ),
         maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-yarn-common",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-yarn-api",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-yarn-client",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
             "org.apache.avro",
             "avro",
             "1.10.2",
@@ -104,6 +122,12 @@ maven_install(
             neverlink = True,
         ),
         maven.artifact(
+            "org.apache.hadoop",
+            "hadoop-mapreduce-client-common",
+            "2.2.0",
+            neverlink = True,
+        ),
+        maven.artifact(
             "org.slf4j",
             "slf4j-api",
             "1.7.10",
@@ -128,10 +152,14 @@ maven_install(
     name = "maven_tests",
     artifacts = [
         "org.apache.hadoop:hadoop-common:2.9.0",
+        "org.apache.hadoop:hadoop-yarn-common:2.2.0",
+        "org.apache.hadoop:hadoop-yarn-api:2.2.0",
+        "org.apache.hadoop:hadoop-yarn-client:2.2.0",
         "org.apache.hadoop:hadoop-mapreduce-client-common:2.9.0",
         "org.apache.hadoop:hadoop-mapreduce-client-core:2.9.0",
         "org.apache.hive:hive-exec:2.2.0",
         "org.apache.hadoop:hadoop-mapred:0.22.0",
+        "org.apache.tez:tez-dag:0.8.5",
         "org.apache.tez:tez-api:0.8.5",
         "org.apache.tez:tez-common:0.8.5",
         "commons-lang:commons-lang:2.6",
