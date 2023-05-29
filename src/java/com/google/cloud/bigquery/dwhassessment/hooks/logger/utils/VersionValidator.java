@@ -51,16 +51,7 @@ public class VersionValidator {
     int minor = Integer.parseInt(matcher.group(2));
 
     // Covers v2.2.x-v3.x.x
-    boolean isVersionValid = major == 2 ? minor >= 2 : major == 3;
-
-    if (!isVersionValid) {
-      LOG.error(
-          "Current Hive version '{}' is not supported by the Assessment logging hook, logging"
-              + " disabled. Please refer to the documentation.",
-          version);
-    }
-
-    return isVersionValid;
+    return major == 2 ? minor >= 2 : major == 3;
   }
 
   private VersionValidator() {}
