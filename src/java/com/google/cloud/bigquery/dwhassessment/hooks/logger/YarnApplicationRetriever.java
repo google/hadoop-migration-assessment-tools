@@ -26,6 +26,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Helper for retrieving YARN Application Report by its ID. */
 public class YarnApplicationRetriever {
 
   private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationRetriever.class);

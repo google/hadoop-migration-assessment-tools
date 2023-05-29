@@ -198,6 +198,6 @@ public final class TestUtils {
         /* numReduce= */ 0,
         /* cpuMSec= */ 0L,
         /* ifSuccess= */ true,
-        /* jobId= */ jobId);
+        jobId);
   }
 }
