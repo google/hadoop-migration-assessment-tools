@@ -233,6 +233,14 @@
       "default": null
     },
     {
+      "name": "HiveHostName",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
       "name": "HiveInstanceType",
       "type": [
         "null",

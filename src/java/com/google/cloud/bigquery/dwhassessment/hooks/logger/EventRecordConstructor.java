@@ -49,7 +49,6 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -147,8 +146,13 @@ public class EventRecordConstructor {
         .ifPresent(
             applicationId -> {
               recordBuilder.set("YarnApplicationId", applicationId.toString());
-              retrieveYarnQueueName(conf, applicationId)
-                  .ifPresent(queue -> recordBuilder.set("Queue", queue));
+              yarnApplicationRetriever
+                  .retrieve(conf, applicationId)
+                  .ifPresent(
+                      applicationReport -> {
+                        recordBuilder.set("HiveHostName", applicationReport.getHost());
+                        recordBuilder.set("Queue", applicationReport.getQueue());
+                      });
             });
 
     dumpTezCounters(plan)
@@ -159,17 +163,13 @@ public class EventRecordConstructor {
     return recordBuilder.build();
   }
 
-  /** Retrieves YARN queue name from the YARN application, associated with the query. */
-  private Optional<String> retrieveYarnQueueName(HiveConf conf, ApplicationId applicationId) {
-    return yarnApplicationRetriever.retrieve(conf, applicationId).map(ApplicationReport::getQueue);
-  }
-
   /**
    * Retrieves YARN queue name where query is supposed to land. It might be different in reality,
    * depending on YARN configuration.
    *
-   * <p>In combination with {@link EventRecordConstructor#retrieveYarnQueueName(HiveConf,
-   * ApplicationId)} it makes the best effort in extracting the query queue name.
+   * <p>In combination with the queue name in YARN Application data from {@link
+   * YarnApplicationRetriever#retrieve(HiveConf, ApplicationId)}} it makes the best effort in
+   * extracting the query queue name.
    */
   private static String retrieveSessionQueueName(HiveConf conf, ExecutionMode mode) {
     switch (mode) {

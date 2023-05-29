@@ -198,12 +198,13 @@ public class EventRecordConstructorTest {
   }
 
   @Test
-  public void postExecHook_recordsApplicationIdAndQueueWhenPossible() {
+  public void postExecHook_recordsYarnApplicationDataWhenPossible() {
     hookContext.setHookType(HookType.POST_EXEC_HOOK);
     queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of(new ExecDriver())));
     state.getMapRedStats().put("Stage-1", createMapRedStats("job_1685098059769_1951"));
     ApplicationReport report = Records.newRecord(ApplicationReport.class);
     report.setQueue("test_queue");
+    report.setHost("test_host");
     when(yarnApplicationRetrieverMock.retrieve(any(), any())).thenReturn(Optional.of(report));
 
     // Act
@@ -211,6 +212,7 @@ public class EventRecordConstructorTest {
 
     // Assert
     assertThat(record.get("YarnApplicationId")).isEqualTo("application_1685098059769_1951");
+    assertThat(record.get("HiveHostName")).isEqualTo("test_host");
     assertThat(record.get("Queue")).isEqualTo("test_queue");
   }
 
