@@ -16,8 +16,10 @@
 
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
+import static com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils.createMapRedStats;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +53,8 @@ import org.apache.hadoop.hive.ql.plan.TezWork;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.util.Records;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounters;
 import org.junit.Before;
@@ -71,6 +75,7 @@ public class EventRecordConstructorTest {
   @Rule public MockitoRule mocks = MockitoJUnit.rule();
 
   @Mock Hive hiveMock;
+  @Mock YarnApplicationRetriever yarnApplicationRetrieverMock;
 
   private EventRecordConstructor eventRecordConstructor;
 
@@ -88,7 +93,8 @@ public class EventRecordConstructorTest {
     queryPlan = TestUtils.createDefaultQueryPlan(hiveMock, queryState);
     hookContext = TestUtils.createDefaultHookContext(queryPlan, queryState);
 
-    eventRecordConstructor = new EventRecordConstructor(TestUtils.createFixedClock());
+    eventRecordConstructor =
+        new EventRecordConstructor(TestUtils.createFixedClock(), yarnApplicationRetrieverMock);
   }
 
   @Test
@@ -192,6 +198,23 @@ public class EventRecordConstructorTest {
   }
 
   @Test
+  public void postExecHook_recordsApplicationIdAndQueueWhenPossible() {
+    hookContext.setHookType(HookType.POST_EXEC_HOOK);
+    queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of(new ExecDriver())));
+    state.getMapRedStats().put("Stage-1", createMapRedStats("job_1685098059769_1951"));
+    ApplicationReport report = Records.newRecord(ApplicationReport.class);
+    report.setQueue("test_queue");
+    when(yarnApplicationRetrieverMock.retrieve(any(), any())).thenReturn(Optional.of(report));
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat(record.get("YarnApplicationId")).isEqualTo("application_1685098059769_1951");
+    assertThat(record.get("Queue")).isEqualTo("test_queue");
+  }
+
+  @Test
   public void onFailureHook_success() {
     hookContext.setHookType(HookType.ON_FAILURE_HOOK);
 
@@ -230,13 +253,7 @@ public class EventRecordConstructorTest {
 
     Counters expectedCounters = createMapReduceCounters(countersHolder);
 
-    MapRedStats stats =
-        new MapRedStats(
-            /* numMap= */ 0,
-            /* numReduce= */ 0,
-            /* cpuMSec= */ 0L,
-            /* ifSuccess= */ true,
-            /* jobId= */ "1");
+    MapRedStats stats = createMapRedStats("1");
     stats.setCounters(expectedCounters);
 
     state.getMapRedStats().put("Map Stage 1", stats);

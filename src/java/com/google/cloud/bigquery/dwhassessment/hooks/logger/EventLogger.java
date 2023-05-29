@@ -81,7 +81,7 @@ public class EventLogger {
   }
 
   protected EventLogger(HiveConf conf, Clock clock) {
-    eventRecordConstructor = new EventRecordConstructor(clock);
+    eventRecordConstructor = new EventRecordConstructor(clock, new YarnApplicationRetriever());
     loggerId = IdGenerator.generate();
     queueCapacity =
         conf.getInt(

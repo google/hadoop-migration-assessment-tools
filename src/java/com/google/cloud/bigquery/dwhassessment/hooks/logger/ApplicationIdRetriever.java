@@ -17,6 +17,7 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
@@ -69,7 +70,19 @@ public class ApplicationIdRetriever {
   private static Optional<ApplicationId> determineMapReduceApplicationId() {
     return SessionState.get().getMapRedStats().values().stream()
         .map(MapRedStats::getJobId)
-        .map(jobId -> TypeConverter.toYarn(JobID.forName(jobId)).getAppId())
+        .map(
+            jobId -> {
+              try {
+                return TypeConverter.toYarn(JobID.forName(jobId)).getAppId();
+              } catch (IllegalArgumentException e) {
+                LOG.warn(
+                    "Failed to convert MapReduce Job ID '{}' to YARN application id, this is"
+                        + " unexpected.",
+                    jobId);
+                return null;
+              }
+            })
+        .filter(Objects::nonNull)
         .findFirst();
   }
 

@@ -25,7 +25,6 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
@@ -51,8 +50,6 @@ import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -67,9 +64,11 @@ public class EventRecordConstructor {
   private static final Logger LOG = LoggerFactory.getLogger(EventRecordConstructor.class);
 
   private final Clock clock;
+  private final YarnApplicationRetriever yarnApplicationRetriever;
 
-  public EventRecordConstructor(Clock clock) {
+  public EventRecordConstructor(Clock clock, YarnApplicationRetriever yarnApplicationRetriever) {
     this.clock = clock;
+    this.yarnApplicationRetriever = yarnApplicationRetriever;
   }
 
   /** Constructs a record with information specific to a hook type */
@@ -94,37 +93,35 @@ public class EventRecordConstructor {
     HiveConf conf = new HiveConf(hookContext.getConf());
     ExecutionMode executionMode = getExecutionMode(plan);
 
-    GenericRecordBuilder recordBuilder =
-        new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
-            .set("QueryId", plan.getQueryId())
-            .set("QueryType", hookContext.getQueryState().getCommandType())
-            .set("QueryText", plan.getQueryStr())
-            .set("EventType", EventType.QUERY_SUBMITTED.name())
-            .set("StartTime", plan.getQueryStartTime())
-            .set("UserName", getUser(hookContext))
-            .set("RequestUser", getRequestUser(hookContext))
-            .set("ExecutionMode", executionMode.name())
-            .set("ExecutionEngine", conf.get("hive.execution.engine"))
-            .set("Queue", getSupposedQueueName(executionMode, conf))
-            .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
-            .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
-            .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
-            .set("PartitionsWritten", getPartitionsFromEntitySet(plan.getOutputs()))
-            .set("SessionId", hookContext.getSessionId())
-            .set("InvokerInfo", conf.getLogIdVar(hookContext.getSessionId()))
-            .set("ThreadName", hookContext.getThreadId())
-            .set("ClientIpAddress", hookContext.getIpAddress())
-            .set("ClientIpAddress", hookContext.getIpAddress())
-            .set("HookVersion", HOOK_VERSION)
-            .set("HiveVersion", getHiveVersion())
-            .set("HiveAddress", getHiveInstanceAddress(hookContext))
-            .set("HiveInstanceType", getHiveInstanceType(hookContext))
-            .set("OperationId", hookContext.getOperationId())
-            .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
-            .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
-            .set("DefaultDatabase", SessionState.get().getCurrentDatabase());
-
-    return recordBuilder.build();
+    return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
+        .set("QueryId", plan.getQueryId())
+        .set("QueryType", hookContext.getQueryState().getCommandType())
+        .set("QueryText", plan.getQueryStr())
+        .set("EventType", EventType.QUERY_SUBMITTED.name())
+        .set("StartTime", plan.getQueryStartTime())
+        .set("UserName", getUser(hookContext))
+        .set("RequestUser", getRequestUser(hookContext))
+        .set("ExecutionMode", executionMode.name())
+        .set("ExecutionEngine", conf.get("hive.execution.engine"))
+        .set("Queue", getSupposedQueueName(executionMode, conf))
+        .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
+        .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
+        .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
+        .set("PartitionsWritten", getPartitionsFromEntitySet(plan.getOutputs()))
+        .set("SessionId", hookContext.getSessionId())
+        .set("InvokerInfo", conf.getLogIdVar(hookContext.getSessionId()))
+        .set("ThreadName", hookContext.getThreadId())
+        .set("ClientIpAddress", hookContext.getIpAddress())
+        .set("ClientIpAddress", hookContext.getIpAddress())
+        .set("HookVersion", HOOK_VERSION)
+        .set("HiveVersion", getHiveVersion())
+        .set("HiveAddress", getHiveInstanceAddress(hookContext))
+        .set("HiveInstanceType", getHiveInstanceType(hookContext))
+        .set("OperationId", hookContext.getOperationId())
+        .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
+        .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
+        .set("DefaultDatabase", SessionState.get().getCurrentDatabase())
+        .build();
   }
 
   private GenericRecord getPostHookEvent(HookContext hookContext, EventStatus status) {
@@ -163,25 +160,17 @@ public class EventRecordConstructor {
   }
 
   private Optional<String> retrieveRealQueueName(HiveConf conf, ApplicationId applicationId) {
-    try (YarnClient yarnClient = YarnClient.createYarnClient()) {
-      yarnClient.init(conf);
-      yarnClient.start();
-      ApplicationReport applicationReport = yarnClient.getApplicationReport(applicationId);
-      yarnClient.stop();
-
-      return Optional.of(applicationReport.getQueue());
-    } catch (IOException | YarnException e) {
-      LOG.warn("Can not retrieve application report for Application ID '{}'", applicationId);
-      return Optional.empty();
-    }
+    return yarnApplicationRetriever.retrieve(conf, applicationId).map(ApplicationReport::getQueue);
   }
 
+  /**
+   * Dumps MapReduce jobs counters. For one query, there can be multiple map reduce jobs.
+   *
+   * <p>Note: {@link org.apache.hadoop.mapred.Counters} is deprecated. If, for any reason, this
+   * becomes an issue in the future, use {@link org.apache.hadoop.mapreduce.Counters}
+   */
   private static Optional<String> dumpMapReduceCounters() {
-    /*
-     {@link org.apache.hadoop.mapred.Counters} is deprecated.
-     If, for any reason, this becomes an issue in the future,
-     use {@link org.apache.hadoop.mapreduce.Counters}
-    */
+
     List<Counters> list =
         SessionState.get().getMapRedStats().values().stream()
             .map(MapRedStats::getCounters)

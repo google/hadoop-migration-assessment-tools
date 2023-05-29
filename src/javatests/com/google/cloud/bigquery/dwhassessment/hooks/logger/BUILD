@@ -50,10 +50,13 @@ java_library(
         "@maven_tests//:org_apache_hadoop_hadoop_common",
         "@maven_tests//:org_apache_hadoop_hadoop_mapred",
         "@maven_tests//:org_apache_hadoop_hadoop_mapreduce_client_common",
+        "@maven_tests//:org_apache_hadoop_hadoop_yarn_api",
+        "@maven_tests//:org_apache_hadoop_hadoop_yarn_client",
         "@maven_tests//:org_apache_hadoop_hadoop_yarn_common",
         "@maven_tests//:org_apache_hive_hive_common",
         "@maven_tests//:org_apache_hive_hive_exec",
         "@maven_tests//:org_apache_tez_tez_api_0_8_5",
+        "@maven_tests//:org_apache_tez_tez_dag_0_8_5",
         "@maven_tests//:org_mockito_mockito_core",
         "@maven_tests//:org_slf4j_slf4j_api",
     ],
@@ -90,6 +93,15 @@ java_test(
     name = "EventLoggerTest",
     size = "small",
     test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLoggerTest",
+    runtime_deps = [
+        ":tests",
+    ],
+)
+
+java_test(
+    name = "ApplicationIdRetrieverTest",
+    size = "small",
+    test_class = "com.google.cloud.bigquery.dwhassessment.hooks.logger.ApplicationIdRetrieverTest",
     runtime_deps = [
         ":tests",
     ],
