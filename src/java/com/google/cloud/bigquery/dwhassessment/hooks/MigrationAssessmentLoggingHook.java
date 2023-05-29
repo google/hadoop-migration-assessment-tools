@@ -15,13 +15,14 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks;
 
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
+
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
-import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator;
 import java.time.Clock;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
-import org.apache.hive.common.util.HiveVersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,10 +31,10 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(MigrationAssessmentLoggingHook.class);
 
-  private static final String version = VersionValidator.getHiveVersion();
+  private static final String version = getHiveVersion();
 
   public void run(HookContext hookContext) throws Exception {
-    if (!VersionValidator.isHiveVersionSupported(version)) {
+    if (!isHiveVersionSupported(version)) {
       LOG.error(
           "Current Hive version '{}' is not supported by the Assessment logging hook, logging"
               + " disabled. Please refer to the documentation.",
