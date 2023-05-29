@@ -21,8 +21,6 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
@@ -99,7 +97,7 @@ public class EventLogger {
     }
 
     recordsWriterFactory = createRecordsWriterFactory(baseDir, conf, clock);
-    if (!isHiveVersionSupported(getHiveVersion()) || recordsWriterFactory == null) {
+    if (recordsWriterFactory == null) {
       logWriter = null;
       return;
     }
@@ -238,6 +236,8 @@ public class EventLogger {
         LOG.warn("Got interrupted exception while waiting for events to be flushed", e);
       }
     }
-    recordsWriterFactory.close();
+    if (recordsWriterFactory != null) {
+      recordsWriterFactory.close();
+    }
   }
 }
