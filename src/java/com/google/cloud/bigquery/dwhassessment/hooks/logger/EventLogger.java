@@ -21,8 +21,6 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
-import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.IdGenerator;
@@ -67,8 +65,6 @@ public class EventLogger {
   private final int queueCapacity;
   private final String loggerId;
 
-  private final boolean loggingEnabled;
-
   // Singleton using DCL.
   private static volatile EventLogger instance;
 
@@ -101,9 +97,8 @@ public class EventLogger {
     }
 
     recordsWriterFactory = createRecordsWriterFactory(baseDir, conf, clock);
-    if (!isHiveVersionSupported(getHiveVersion()) || recordsWriterFactory == null) {
+    if (recordsWriterFactory == null) {
       logWriter = null;
-      loggingEnabled = false;
       return;
     }
 
@@ -127,11 +122,10 @@ public class EventLogger {
 
     LOG.info(
         "Logger successfully started, waiting for query events. Log directory is '{}'", baseDir);
-    loggingEnabled = true;
   }
 
   public void handle(HookContext hookContext) {
-    if (recordsWriterFactory == null || !loggingEnabled) {
+    if (recordsWriterFactory == null) {
       return;
     }
     // Note: same hookContext object is used for all the events for a given query, if we try to
