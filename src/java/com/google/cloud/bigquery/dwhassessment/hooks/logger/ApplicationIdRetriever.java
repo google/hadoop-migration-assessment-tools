@@ -22,10 +22,12 @@ import java.util.stream.Stream;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
 import org.apache.hadoop.hive.ql.MapRedStats;
+import org.apache.hadoop.hive.ql.exec.tez.TezSessionState;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapreduce.TypeConverter;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.tez.client.TezClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,13 +56,19 @@ public class ApplicationIdRetriever {
    * created.
    */
   private static Optional<ApplicationId> determineTezApplicationId() {
-    try {
-      return Optional.of(
-          SessionState.get().getTezSession().getSession().getAppMasterApplicationId());
-    } catch (NullPointerException e) {
-      LOG.info("Failed to retrieve Application ID from Tez session");
-      return Optional.empty();
+    SessionState sessionState = SessionState.get();
+    if (sessionState != null) {
+      TezSessionState tezSessionState = sessionState.getTezSession();
+      if (tezSessionState != null) {
+        TezClient tezClient = tezSessionState.getSession();
+        if (tezClient != null) {
+          return Optional.ofNullable(tezClient.getAppMasterApplicationId());
+        }
+      }
     }
+
+    LOG.info("Failed to retrieve Application ID from Tez session");
+    return Optional.empty();
   }
 
   /**
