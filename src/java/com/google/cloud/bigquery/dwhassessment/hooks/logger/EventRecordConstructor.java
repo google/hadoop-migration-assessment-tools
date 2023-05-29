@@ -103,7 +103,7 @@ public class EventRecordConstructor {
         .set("RequestUser", getRequestUser(hookContext))
         .set("ExecutionMode", executionMode.name())
         .set("ExecutionEngine", conf.get("hive.execution.engine"))
-        .set("Queue", getSupposedQueueName(executionMode, conf))
+        .set("Queue", retrieveSessionQueueName(conf, executionMode))
         .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
         .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
         .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
@@ -147,7 +147,7 @@ public class EventRecordConstructor {
         .ifPresent(
             applicationId -> {
               recordBuilder.set("YarnApplicationId", applicationId.toString());
-              retrieveRealQueueName(conf, applicationId)
+              retrieveYarnQueueName(conf, applicationId)
                   .ifPresent(queue -> recordBuilder.set("Queue", queue));
             });
 
@@ -159,8 +159,29 @@ public class EventRecordConstructor {
     return recordBuilder.build();
   }
 
-  private Optional<String> retrieveRealQueueName(HiveConf conf, ApplicationId applicationId) {
+  /** Retrieves YARN queue name from the YARN application, associated with the query. */
+  private Optional<String> retrieveYarnQueueName(HiveConf conf, ApplicationId applicationId) {
     return yarnApplicationRetriever.retrieve(conf, applicationId).map(ApplicationReport::getQueue);
+  }
+
+  /**
+   * Retrieves YARN queue name where query is supposed to land. It might be different in reality,
+   * depending on YARN configuration.
+   *
+   * <p>In combination with {@link EventRecordConstructor#retrieveYarnQueueName(HiveConf,
+   * ApplicationId)} it makes the best effort in extracting the query queue name.
+   */
+  private static String retrieveSessionQueueName(HiveConf conf, ExecutionMode mode) {
+    switch (mode) {
+      case LLAP:
+        return conf.get(HiveConf.ConfVars.LLAP_DAEMON_QUEUE_NAME.varname);
+      case MR:
+        return conf.get(MR_QUEUE_NAME.getConfName());
+      case TEZ:
+        return conf.get(TEZ_QUEUE_NAME.getConfName());
+      default:
+        return null;
+    }
   }
 
   /**
@@ -301,19 +322,6 @@ public class EventRecordConstructor {
     }
 
     return ExecutionMode.NONE;
-  }
-
-  private static String getSupposedQueueName(ExecutionMode mode, HiveConf conf) {
-    switch (mode) {
-      case LLAP:
-        return conf.get(HiveConf.ConfVars.LLAP_DAEMON_QUEUE_NAME.varname);
-      case MR:
-        return conf.get(MR_QUEUE_NAME.getConfName());
-      case TEZ:
-        return conf.get(TEZ_QUEUE_NAME.getConfName());
-      default:
-        return null;
-    }
   }
 
   private static String getHiveInstanceAddress(HookContext hookContext) {
