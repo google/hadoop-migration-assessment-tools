@@ -25,6 +25,8 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
@@ -49,6 +51,8 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -152,6 +156,16 @@ public class EventRecordConstructor {
                       applicationReport -> {
                         recordBuilder.set("HiveHostName", applicationReport.getHost());
                         recordBuilder.set("Queue", applicationReport.getQueue());
+                        recordBuilder.set("YarnProcess", applicationReport.getProgress());
+                        recordBuilder.set("YarnApplicationType", applicationReport.getApplicationType());
+                        recordBuilder.set("YarnApplicationState", applicationReport.getYarnApplicationState().toString());
+                        recordBuilder.set("YarnDiagnostics", applicationReport.getDiagnostics());
+                        recordBuilder.set("YarnCurrentApplicationAttemptId", applicationReport.getCurrentApplicationAttemptId().toString());
+                        recordBuilder.set("YarnUser", applicationReport.getUser());
+                        recordBuilder.set("YarnStartTime", applicationReport.getStartTime());
+                        recordBuilder.set("YarnFinishTime", applicationReport.getFinishTime());
+                        recordBuilder.set("YarnFinalApplicationStatus", applicationReport.getFinalApplicationStatus().toString());
+                        retrieveApplicationResourceUsageReport(recordBuilder, applicationReport.getApplicationResourceUsageReport());
                       });
             });
 
@@ -161,6 +175,47 @@ public class EventRecordConstructor {
         .ifPresent(counters -> recordBuilder.set("CountersObject", counters));
 
     return recordBuilder.build();
+  }
+
+  private void retrieveApplicationResourceUsageReport(GenericRecordBuilder recordBuilder, ApplicationResourceUsageReport applicationResourceUsageReport) {
+    recordBuilder.set("YarnReportUsedResources", String.valueOf(applicationResourceUsageReport.getUsedResources().toString()));
+    callMethodWithReflection("getMemorySize", "YarnReportUsedResourcesMemory", recordBuilder, applicationResourceUsageReport.getUsedResources());
+    callMethodWithReflection("getVirtualCores", "YarnReportUsedResourcesVcore", recordBuilder, applicationResourceUsageReport.getUsedResources());
+
+    recordBuilder.set("YarnReportReservedResources", String.valueOf(applicationResourceUsageReport.getReservedResources().toString()));
+    callMethodWithReflection("getMemorySize", "YarnReportReservedResourcesMemory", recordBuilder, applicationResourceUsageReport.getReservedResources());
+    callMethodWithReflection("getVirtualCores", "YarnReportReservedResourcesVcore", recordBuilder, applicationResourceUsageReport.getReservedResources());
+
+    recordBuilder.set("YarnReportNeededResources", String.valueOf(applicationResourceUsageReport.getNeededResources().toString()));
+    callMethodWithReflection("getMemorySize", "YarnReportNeededResourcesMemory", recordBuilder, applicationResourceUsageReport.getNeededResources());
+    callMethodWithReflection("getVirtualCores", "YarnReportNeededResourcesVcore", recordBuilder, applicationResourceUsageReport.getNeededResources());
+
+    callMethodWithReflection("getNumUsedContainers", "YarnReportNumUsedContainers", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getNumReservedContainers", "YarnReportNumReservedContainers", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getMemorySeconds", "YarnReportMemorySeconds", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getVcoreSeconds", "YarnReportVcoreSeconds", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getQueueUsagePercentage", "YarnReportQueueUsagePercentage", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getClusterUsagePercentage", "YarnReportClusterUsagePercentage", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getPreemptedMemorySeconds", "YarnReportPreemptedMemorySeconds", recordBuilder, applicationResourceUsageReport);
+    callMethodWithReflection("getPreemptedVcoreSeconds", "YarnReportPreemptedVcoreSeconds", recordBuilder, applicationResourceUsageReport);
+  }
+
+  private void callMethodWithReflection(String methodName, String fieldNameInAvro, GenericRecordBuilder recordBuilder, ApplicationResourceUsageReport applicationResourceUsageReport) {
+    try {
+      Method method = ApplicationResourceUsageReport.class.getMethod(methodName);
+      recordBuilder.set(fieldNameInAvro, method.invoke(applicationResourceUsageReport));
+    } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+      LOG.warn("Failed to invoke method '{}'", methodName);
+    }
+  }
+
+  private void callMethodWithReflection(String methodName, String fieldNameInAvro, GenericRecordBuilder recordBuilder, Resource resource) {
+    try {
+      Method method = Resource.class.getMethod(methodName);
+      recordBuilder.set(fieldNameInAvro, method.invoke(resource));
+    } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+      LOG.warn("Failed to invoke method '{}'", methodName);
+    }
   }
 
   /**
