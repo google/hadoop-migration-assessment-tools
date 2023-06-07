@@ -157,15 +157,23 @@ public class EventRecordConstructor {
                         recordBuilder.set("HiveHostName", applicationReport.getHost());
                         recordBuilder.set("Queue", applicationReport.getQueue());
                         recordBuilder.set("YarnProcess", applicationReport.getProgress());
-                        recordBuilder.set("YarnApplicationType", applicationReport.getApplicationType());
-                        recordBuilder.set("YarnApplicationState", applicationReport.getYarnApplicationState().toString());
+                        recordBuilder.set(
+                            "YarnApplicationType", applicationReport.getApplicationType());
+                        recordBuilder.set(
+                            "YarnApplicationState",
+                            applicationReport.getYarnApplicationState().toString());
                         recordBuilder.set("YarnDiagnostics", applicationReport.getDiagnostics());
-                        recordBuilder.set("YarnCurrentApplicationAttemptId", applicationReport.getCurrentApplicationAttemptId().toString());
+                        recordBuilder.set(
+                            "YarnCurrentApplicationAttemptId",
+                            applicationReport.getCurrentApplicationAttemptId().toString());
                         recordBuilder.set("YarnUser", applicationReport.getUser());
                         recordBuilder.set("YarnStartTime", applicationReport.getStartTime());
                         recordBuilder.set("YarnFinishTime", applicationReport.getFinishTime());
-                        recordBuilder.set("YarnFinalApplicationStatus", applicationReport.getFinalApplicationStatus().toString());
-                        retrieveApplicationResourceUsageReport(recordBuilder, applicationReport.getApplicationResourceUsageReport());
+                        recordBuilder.set(
+                            "YarnFinalApplicationStatus",
+                            applicationReport.getFinalApplicationStatus().toString());
+                        retrieveApplicationResourceUsageReport(
+                            recordBuilder, applicationReport.getApplicationResourceUsageReport());
                       });
             });
 
@@ -177,36 +185,87 @@ public class EventRecordConstructor {
     return recordBuilder.build();
   }
 
-  private void retrieveApplicationResourceUsageReport(GenericRecordBuilder recordBuilder, ApplicationResourceUsageReport applicationResourceUsageReport) {
+  private void retrieveApplicationResourceUsageReport(
+      GenericRecordBuilder recordBuilder,
+      ApplicationResourceUsageReport applicationResourceUsageReport) {
     String reportClassName = "org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport";
     String resourceClassName = "org.apache.hadoop.yarn.api.records.Resource";
 
-    ImmutableMap<String, String> reportMethods = ImmutableMap.<String, String>builder()
-        .put("getNumUsedContainers", "YarnReportNumUsedContainers")
-        .put("getNumReservedContainers", "YarnReportNumReservedContainers")
-        .put("getMemorySeconds", "YarnReportMemorySeconds")
-        .put("getVcoreSeconds", "YarnReportVcoreSeconds")
-        .put("getQueueUsagePercentage", "YarnReportQueueUsagePercentage")
-        .put("getClusterUsagePercentage", "YarnReportClusterUsagePercentage")
-        .put("getPreemptedMemorySeconds", "YarnReportPreemptedMemorySeconds")
-        .put("getPreemptedVcoreSeconds", "YarnReportPreemptedVcoreSeconds")
-        .build();
+    ImmutableMap<String, String> reportMethods =
+        ImmutableMap.<String, String>builder()
+            .put("getNumUsedContainers", "YarnReportNumUsedContainers")
+            .put("getNumReservedContainers", "YarnReportNumReservedContainers")
+            .put("getMemorySeconds", "YarnReportMemorySeconds")
+            .put("getVcoreSeconds", "YarnReportVcoreSeconds")
+            .put("getQueueUsagePercentage", "YarnReportQueueUsagePercentage")
+            .put("getClusterUsagePercentage", "YarnReportClusterUsagePercentage")
+            .put("getPreemptedMemorySeconds", "YarnReportPreemptedMemorySeconds")
+            .put("getPreemptedVcoreSeconds", "YarnReportPreemptedVcoreSeconds")
+            .build();
 
-    reportMethods.forEach((methodName, fieldName) -> callMethodWithReflection(methodName, fieldName, recordBuilder, applicationResourceUsageReport, reportClassName));
-    recordBuilder.set("YarnReportUsedResources", String.valueOf(applicationResourceUsageReport.getUsedResources().toString()));
-    callMethodWithReflection("getMemorySize", "YarnReportUsedResourcesMemory", recordBuilder, applicationResourceUsageReport.getUsedResources(), resourceClassName);
-    callMethodWithReflection("getVirtualCores", "YarnReportUsedResourcesVcore", recordBuilder, applicationResourceUsageReport.getUsedResources(), resourceClassName);
+    reportMethods.forEach(
+        (methodName, fieldName) ->
+            callMethodWithReflection(
+                methodName,
+                fieldName,
+                recordBuilder,
+                applicationResourceUsageReport,
+                reportClassName));
+    recordBuilder.set(
+        "YarnReportUsedResources",
+        String.valueOf(applicationResourceUsageReport.getUsedResources().toString()));
+    callMethodWithReflection(
+        "getMemorySize",
+        "YarnReportUsedResourcesMemory",
+        recordBuilder,
+        applicationResourceUsageReport.getUsedResources(),
+        resourceClassName);
+    callMethodWithReflection(
+        "getVirtualCores",
+        "YarnReportUsedResourcesVcore",
+        recordBuilder,
+        applicationResourceUsageReport.getUsedResources(),
+        resourceClassName);
 
-    recordBuilder.set("YarnReportReservedResources", String.valueOf(applicationResourceUsageReport.getReservedResources().toString()));
-    callMethodWithReflection("getMemorySize", "YarnReportReservedResourcesMemory", recordBuilder, applicationResourceUsageReport.getReservedResources(), resourceClassName);
-    callMethodWithReflection("getVirtualCores", "YarnReportReservedResourcesVcore", recordBuilder, applicationResourceUsageReport.getReservedResources(), resourceClassName);
+    recordBuilder.set(
+        "YarnReportReservedResources",
+        String.valueOf(applicationResourceUsageReport.getReservedResources().toString()));
+    callMethodWithReflection(
+        "getMemorySize",
+        "YarnReportReservedResourcesMemory",
+        recordBuilder,
+        applicationResourceUsageReport.getReservedResources(),
+        resourceClassName);
+    callMethodWithReflection(
+        "getVirtualCores",
+        "YarnReportReservedResourcesVcore",
+        recordBuilder,
+        applicationResourceUsageReport.getReservedResources(),
+        resourceClassName);
 
-    recordBuilder.set("YarnReportNeededResources", String.valueOf(applicationResourceUsageReport.getNeededResources().toString()));
-    callMethodWithReflection("getMemorySize", "YarnReportNeededResourcesMemory", recordBuilder, applicationResourceUsageReport.getNeededResources(), resourceClassName);
-    callMethodWithReflection("getVirtualCores", "YarnReportNeededResourcesVcore", recordBuilder, applicationResourceUsageReport.getNeededResources(), resourceClassName);
+    recordBuilder.set(
+        "YarnReportNeededResources",
+        String.valueOf(applicationResourceUsageReport.getNeededResources().toString()));
+    callMethodWithReflection(
+        "getMemorySize",
+        "YarnReportNeededResourcesMemory",
+        recordBuilder,
+        applicationResourceUsageReport.getNeededResources(),
+        resourceClassName);
+    callMethodWithReflection(
+        "getVirtualCores",
+        "YarnReportNeededResourcesVcore",
+        recordBuilder,
+        applicationResourceUsageReport.getNeededResources(),
+        resourceClassName);
   }
 
-  private void callMethodWithReflection(String methodName, String fieldNameInAvro, GenericRecordBuilder recordBuilder, Object object, String className) {
+  private void callMethodWithReflection(
+      String methodName,
+      String fieldNameInAvro,
+      GenericRecordBuilder recordBuilder,
+      Object object,
+      String className) {
     try {
       Method method = Class.forName(className).getMethod(methodName);
       recordBuilder.set(fieldNameInAvro, method.invoke(object));
