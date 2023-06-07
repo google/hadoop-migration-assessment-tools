@@ -154,24 +154,24 @@ public class EventRecordConstructor {
                   .retrieve(conf, applicationId)
                   .ifPresent(
                       applicationReport -> {
-                        recordBuilder.set("HiveHostName", applicationReport.getHost());
-                        recordBuilder.set("Queue", applicationReport.getQueue());
-                        recordBuilder.set("YarnProcess", applicationReport.getProgress());
-                        recordBuilder.set(
-                            "YarnApplicationType", applicationReport.getApplicationType());
-                        recordBuilder.set(
-                            "YarnApplicationState",
-                            applicationReport.getYarnApplicationState().toString());
-                        recordBuilder.set("YarnDiagnostics", applicationReport.getDiagnostics());
-                        recordBuilder.set(
-                            "YarnCurrentApplicationAttemptId",
-                            applicationReport.getCurrentApplicationAttemptId().toString());
-                        recordBuilder.set("YarnUser", applicationReport.getUser());
-                        recordBuilder.set("YarnStartTime", applicationReport.getStartTime());
-                        recordBuilder.set("YarnFinishTime", applicationReport.getFinishTime());
-                        recordBuilder.set(
-                            "YarnFinalApplicationStatus",
-                            applicationReport.getFinalApplicationStatus().toString());
+                        recordBuilder
+                            .set("HiveHostName", applicationReport.getHost())
+                            .set("Queue", applicationReport.getQueue())
+                            .set("YarnProcess", applicationReport.getProgress())
+                            .set("YarnApplicationType", applicationReport.getApplicationType())
+                            .set(
+                                "YarnApplicationState",
+                                applicationReport.getYarnApplicationState().toString())
+                            .set("YarnDiagnostics", applicationReport.getDiagnostics())
+                            .set(
+                                "YarnCurrentApplicationAttemptId",
+                                applicationReport.getCurrentApplicationAttemptId().toString())
+                            .set("YarnUser", applicationReport.getUser())
+                            .set("YarnStartTime", applicationReport.getStartTime())
+                            .set("YarnFinishTime", applicationReport.getFinishTime())
+                            .set(
+                                "YarnFinalApplicationStatus",
+                                applicationReport.getFinalApplicationStatus().toString());
                         retrieveApplicationResourceUsageReport(
                             recordBuilder, applicationReport.getApplicationResourceUsageReport());
                       });
@@ -188,9 +188,6 @@ public class EventRecordConstructor {
   private void retrieveApplicationResourceUsageReport(
       GenericRecordBuilder recordBuilder,
       ApplicationResourceUsageReport applicationResourceUsageReport) {
-    String reportClassName = "org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport";
-    String resourceClassName = "org.apache.hadoop.yarn.api.records.Resource";
-
     ImmutableMap<String, String> reportMethods =
         ImmutableMap.<String, String>builder()
             .put("getNumUsedContainers", "YarnReportNumUsedContainers")
@@ -206,11 +203,7 @@ public class EventRecordConstructor {
     reportMethods.forEach(
         (methodName, fieldName) ->
             callMethodWithReflection(
-                methodName,
-                fieldName,
-                recordBuilder,
-                applicationResourceUsageReport,
-                reportClassName));
+                methodName, fieldName, recordBuilder, applicationResourceUsageReport));
     recordBuilder.set(
         "YarnReportUsedResources",
         String.valueOf(applicationResourceUsageReport.getUsedResources().toString()));
@@ -218,14 +211,12 @@ public class EventRecordConstructor {
         "getMemorySize",
         "YarnReportUsedResourcesMemory",
         recordBuilder,
-        applicationResourceUsageReport.getUsedResources(),
-        resourceClassName);
+        applicationResourceUsageReport.getUsedResources());
     callMethodWithReflection(
         "getVirtualCores",
         "YarnReportUsedResourcesVcore",
         recordBuilder,
-        applicationResourceUsageReport.getUsedResources(),
-        resourceClassName);
+        applicationResourceUsageReport.getUsedResources());
 
     recordBuilder.set(
         "YarnReportReservedResources",
@@ -234,14 +225,12 @@ public class EventRecordConstructor {
         "getMemorySize",
         "YarnReportReservedResourcesMemory",
         recordBuilder,
-        applicationResourceUsageReport.getReservedResources(),
-        resourceClassName);
+        applicationResourceUsageReport.getReservedResources());
     callMethodWithReflection(
         "getVirtualCores",
         "YarnReportReservedResourcesVcore",
         recordBuilder,
-        applicationResourceUsageReport.getReservedResources(),
-        resourceClassName);
+        applicationResourceUsageReport.getReservedResources());
 
     recordBuilder.set(
         "YarnReportNeededResources",
@@ -250,29 +239,24 @@ public class EventRecordConstructor {
         "getMemorySize",
         "YarnReportNeededResourcesMemory",
         recordBuilder,
-        applicationResourceUsageReport.getNeededResources(),
-        resourceClassName);
+        applicationResourceUsageReport.getNeededResources());
     callMethodWithReflection(
         "getVirtualCores",
         "YarnReportNeededResourcesVcore",
         recordBuilder,
-        applicationResourceUsageReport.getNeededResources(),
-        resourceClassName);
+        applicationResourceUsageReport.getNeededResources());
   }
 
-  private void callMethodWithReflection(
-      String methodName,
-      String fieldNameInAvro,
-      GenericRecordBuilder recordBuilder,
-      Object object,
-      String className) {
+  private <T> void callMethodWithReflection(
+      String methodName, String fieldNameInAvro, GenericRecordBuilder recordBuilder, T object) {
     try {
-      Method method = Class.forName(className).getMethod(methodName);
+      Method method = Class.forName(object.getClass().getName()).getMethod(methodName);
       recordBuilder.set(fieldNameInAvro, method.invoke(object));
     } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
       LOG.warn("Failed to invoke method '{}'", methodName);
     } catch (ClassNotFoundException e) {
-      LOG.warn("Failed to find class {} to invoke method '{}'", className, methodName);
+      LOG.warn(
+          "Failed to find class {} to invoke method '{}'", object.getClass().getName(), methodName);
     }
   }
 
