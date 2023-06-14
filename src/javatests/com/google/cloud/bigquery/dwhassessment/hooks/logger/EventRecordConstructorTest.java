@@ -252,6 +252,8 @@ public class EventRecordConstructorTest {
 
     // Assert
     assertThat(record.get("ApplicationData")).isEqualTo(expectedJson);
+    assertThat(record.get("HiveHostName")).isEqualTo("test_host");
+    assertThat(record.get("Queue")).isEqualTo("test_queue");
   }
 
   @Test

@@ -156,6 +156,9 @@ public class EventRecordConstructor {
               yarnApplicationRetriever.retrieve(conf, applicationId)
                   .ifPresent(
                       applicationReport -> {
+                        recordBuilder
+                            .set("HiveHostName", applicationReport.getHost())
+                            .set("Queue", applicationReport.getQueue());
                         applicationDataMap.put("HiveHostName", applicationReport.getHost())
                             .put("Queue", applicationReport.getQueue())
                             .put("YarnProcess", String.valueOf(applicationReport.getProgress()))
