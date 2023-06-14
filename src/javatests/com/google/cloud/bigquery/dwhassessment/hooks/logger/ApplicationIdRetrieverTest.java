@@ -19,11 +19,11 @@ package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 import static com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils.createDefaultSessionState;
 import static com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils.createMapRedStats;
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.tez.TezSessionState;
 import org.apache.hadoop.hive.ql.session.SessionState;
@@ -47,7 +47,7 @@ public class ApplicationIdRetrieverTest {
   @Test
   public void determineLlapApplicationId_unsetHostsConfigValue() {
     // Act
-    Optional<ApplicationId> applicationId =
+    List<ApplicationId> applicationId =
         ApplicationIdRetriever.determineLlapApplicationId(conf, ExecutionMode.LLAP);
 
     // Assert
@@ -57,7 +57,7 @@ public class ApplicationIdRetrieverTest {
   @Test
   public void determineApplicationId_unsupportedExecutionMode() {
     // Act
-    Optional<ApplicationId> applicationId =
+    List<ApplicationId> applicationId =
         ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.DDL);
 
     // Assert
@@ -70,13 +70,16 @@ public class ApplicationIdRetrieverTest {
 
     sessionState.getMapRedStats().put("Stage-1", createMapRedStats("job_1685098059769_1951"));
     sessionState.getMapRedStats().put("Stage-2", createMapRedStats("job_1685098059769_1949"));
+    List<ApplicationId> expectedList = new ArrayList<>();
+    expectedList.add(ApplicationId.newInstance(/* clusterTimestamp= */ 1685098059769L, /* id= */ 1951));
+    expectedList.add(ApplicationId.newInstance(/* clusterTimestamp= */ 1685098059769L, /* id= */ 1949));
 
     // Act
-    ApplicationId applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR).get();
+    List<ApplicationId> applicationIds =
+        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR);
 
     // Assert
-    assertThat(applicationId.toString()).isEqualTo("application_1685098059769_1951");
+    assertThat(applicationIds).isEqualTo(expectedList);
   }
 
   @Test
@@ -86,7 +89,7 @@ public class ApplicationIdRetrieverTest {
     sessionState.getMapRedStats().put("Stage-1", createMapRedStats("malformed_job_id"));
 
     // Act
-    Optional<ApplicationId> applicationId =
+    List<ApplicationId> applicationId =
         ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR);
 
     // Assert
@@ -96,7 +99,7 @@ public class ApplicationIdRetrieverTest {
   @Test
   public void determineApplicationId_TezWithEmptyState() {
     // Act
-    Optional<ApplicationId> applicationId =
+    List<ApplicationId> applicationId =
         ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.TEZ);
 
     // Assert
@@ -115,10 +118,10 @@ public class ApplicationIdRetrieverTest {
     sessionState.setTezSession(tezSessionState);
 
     // Act
-    Optional<ApplicationId> applicationId =
+    List<ApplicationId> applicationId =
         ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.TEZ);
 
     // Assert
-    assertThat(applicationId).hasValue(expectedApplicationId);
+    assertThat(applicationId).containsExactly(expectedApplicationId);
   }
 }

@@ -223,6 +223,11 @@ public class EventRecordConstructorTest {
     report.setStartTime(100000L);
     report.setFinishTime(200000L);
     report.setFinalApplicationStatus(FinalApplicationStatus.UNDEFINED);
+    String expectedJson =
+        "[{\"YarnApplicationId\":\"application_1685098059769_1951\",\"HiveHostName\":\"test_host\",\"Queue\":\"test_queue\",\"YarnProcess\":\"10000.6\",\"YarnApplicationType\":\"TEZ\",\"YarnApplicationState\":\"RUNNING\",\"YarnDiagnostics\":\"test_diagnostics\",\"YarnCurrentApplicationAttemptId\":\"appattempt_1685098059769_1951_000001\",\"YarnUser\":\"test_user\",\"YarnStartTime\":\"100000\",\"YarnFinishTime\":\"200000\",\"YarnFinalApplicationStatus\":\"UNDEFINED\",\"YarnReportNumUsedContainers\":\"3\",\"YarnReportNumReservedContainers\":\"4\",\"YarnReportMemorySeconds\":\"100\",\"YarnReportVcoreSeconds\":\"400\",\"YarnReportQueueUsagePercentage\":\"90.5\",\"YarnReportClusterUsagePercentage\":\"64.5\",\"YarnReportPreemptedMemorySeconds\":\"200\",\"YarnReportPreemptedVcoreSeconds\":\"300\",\"YarnReportUsedResources\":\"<memory:800,"
+            + " vCores:5>\",\"YarnReportUsedResourcesMemory\":\"800\",\"YarnReportUsedResourcesVcore\":\"5\",\"YarnReportReservedResources\":\"<memory:600,"
+            + " vCores:8>\",\"YarnReportReservedResourcesMemory\":\"600\",\"YarnReportReservedResourcesVcore\":\"8\",\"YarnReportNeededResources\":\"<memory:700,"
+            + " vCores:4>\",\"YarnReportNeededResourcesMemory\":\"700\",\"YarnReportNeededResourcesVcore\":\"4\"}]";
 
     ApplicationResourceUsageReport applicationResourceUsageReport = Records.newRecord(ApplicationResourceUsageReport.class);
     applicationResourceUsageReport.setMemorySeconds(100L);
@@ -246,38 +251,7 @@ public class EventRecordConstructorTest {
     GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
 
     // Assert
-    assertThat(record.get("YarnApplicationId")).isEqualTo("application_1685098059769_1951");
-    assertThat(record.get("HiveHostName")).isEqualTo("test_host");
-    assertThat(record.get("Queue")).isEqualTo("test_queue");
-
-    assertThat(record.get("YarnProcess")).isEqualTo(10000.6f);
-    assertThat(record.get("YarnApplicationType")).isEqualTo("TEZ");
-    assertThat(record.get("YarnApplicationState")).isEqualTo("RUNNING");
-    assertThat(record.get("YarnDiagnostics")).isEqualTo("test_diagnostics");
-    assertThat(record.get("YarnCurrentApplicationAttemptId")).isEqualTo("appattempt_1685098059769_1951_000001");
-    assertThat(record.get("YarnUser")).isEqualTo("test_user");
-    assertThat(record.get("YarnStartTime")).isEqualTo(100000L);
-    assertThat(record.get("YarnFinishTime")).isEqualTo(200000L);
-    assertThat(record.get("YarnFinalApplicationStatus")).isEqualTo("UNDEFINED");
-
-    assertThat(record.get("YarnReportMemorySeconds")).isEqualTo(100L);
-    assertThat(record.get("YarnReportVcoreSeconds")).isEqualTo(400L);
-    assertThat(record.get("YarnReportClusterUsagePercentage")).isEqualTo(64.5f);
-    assertThat(record.get("YarnReportQueueUsagePercentage")).isEqualTo(90.5f);
-    assertThat(record.get("YarnReportPreemptedMemorySeconds")).isEqualTo(200L);
-    assertThat(record.get("YarnReportPreemptedVcoreSeconds")).isEqualTo(300L);
-    assertThat(record.get("YarnReportNumUsedContainers")).isEqualTo(3);
-    assertThat(record.get("YarnReportNumReservedContainers")).isEqualTo(4);
-
-    assertThat(record.get("YarnReportReservedResources")).isEqualTo("<memory:600, vCores:8>");
-    assertThat(record.get("YarnReportReservedResourcesMemory")).isEqualTo(600L);
-    assertThat(record.get("YarnReportReservedResourcesVcore")).isEqualTo(8);
-    assertThat(record.get("YarnReportNeededResources")).isEqualTo("<memory:700, vCores:4>");
-    assertThat(record.get("YarnReportNeededResourcesMemory")).isEqualTo(700L);
-    assertThat(record.get("YarnReportNeededResourcesVcore")).isEqualTo(4);
-    assertThat(record.get("YarnReportUsedResources")).isEqualTo("<memory:800, vCores:5>");
-    assertThat(record.get("YarnReportUsedResourcesMemory")).isEqualTo(800L);
-    assertThat(record.get("YarnReportUsedResourcesVcore")).isEqualTo(5);
+    assertThat(record.get("ApplicationData")).isEqualTo(expectedJson);
   }
 
   @Test
