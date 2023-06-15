@@ -39,15 +39,15 @@ public class ApplicationIdRetriever {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApplicationIdRetriever.class);
 
-  public static List<ApplicationId> determineApplicationId(
+  public static List<ApplicationId> determineApplicationIds(
       HiveConf conf, ExecutionMode executionMode) {
     switch (executionMode) {
       case MR:
-        return determineMapReduceApplicationId();
+        return determineMapReduceApplicationIds();
       case TEZ:
-        return determineTezApplicationId();
+        return determineTezApplicationIds();
       case LLAP:
-        return determineLlapApplicationId(conf, executionMode);
+        return determineLlapApplicationIds(conf, executionMode);
       default:
         return new ArrayList<>();
     }
@@ -58,14 +58,15 @@ public class ApplicationIdRetriever {
    * application always have only one queue – if queue changes in the session, new application is
    * created.
    */
-  private static List<ApplicationId> determineTezApplicationId() {
+  private static List<ApplicationId> determineTezApplicationIds() {
     SessionState sessionState = SessionState.get();
     if (sessionState != null) {
       TezSessionState tezSessionState = sessionState.getTezSession();
       if (tezSessionState != null) {
         TezClient tezClient = tezSessionState.getSession();
         if (tezClient != null) {
-          return Collections.singletonList(tezClient.getAppMasterApplicationId());
+          ApplicationId applicationId = tezClient.getAppMasterApplicationId();
+          return applicationId != null ? Collections.singletonList(tezClient.getAppMasterApplicationId()) : new ArrayList<>();
         }
       }
     }
@@ -78,7 +79,7 @@ public class ApplicationIdRetriever {
    * Retrieves Application ID from the first MapReduce job as multiple MapReduce jobs created for a
    * single query are submitted to the same queue.
    */
-  private static List<ApplicationId> determineMapReduceApplicationId() {
+  private static List<ApplicationId> determineMapReduceApplicationIds() {
     return SessionState.get().getMapRedStats().values().stream()
         .map(MapRedStats::getJobId)
         .flatMap(
@@ -99,7 +100,7 @@ public class ApplicationIdRetriever {
    * Retrieve Application ID for Llap daemon. They are long-living YARN applications, using the same
    * queue, so it should be relatively static.
    */
-  public static List<ApplicationId> determineLlapApplicationId(
+  public static List<ApplicationId> determineLlapApplicationIds(
       HiveConf conf, ExecutionMode mode) {
     // Note: for now, LLAP is only supported in Tez tasks. Will never come to MR; others may
     // be added here, although this is only necessary to have extra debug information.

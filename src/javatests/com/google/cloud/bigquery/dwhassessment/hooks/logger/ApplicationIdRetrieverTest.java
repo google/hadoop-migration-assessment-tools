@@ -45,27 +45,27 @@ public class ApplicationIdRetrieverTest {
   }
 
   @Test
-  public void determineLlapApplicationId_unsetHostsConfigValue() {
+  public void determineLlapApplicationIds_unsetHostsConfigValue() {
     // Act
     List<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineLlapApplicationId(conf, ExecutionMode.LLAP);
+        ApplicationIdRetriever.determineLlapApplicationIds(conf, ExecutionMode.LLAP);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_unsupportedExecutionMode() {
+  public void determineApplicationIds_unsupportedExecutionMode() {
     // Act
     List<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.DDL);
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.DDL);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_MapReduce_success() {
+  public void determineApplicationIds_MapReduce_success() {
     SessionState sessionState = createDefaultSessionState(conf);
 
     sessionState.getMapRedStats().put("Stage-1", createMapRedStats("job_1685098059769_1951"));
@@ -76,38 +76,38 @@ public class ApplicationIdRetrieverTest {
 
     // Act
     List<ApplicationId> applicationIds =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR);
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.MR);
 
     // Assert
     assertThat(applicationIds).isEqualTo(expectedList);
   }
 
   @Test
-  public void determineApplicationId_MapReduce_malformedJobId() {
+  public void determineApplicationIds_MapReduce_malformedJobId() {
     SessionState sessionState = createDefaultSessionState(conf);
 
     sessionState.getMapRedStats().put("Stage-1", createMapRedStats("malformed_job_id"));
 
     // Act
     List<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR);
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.MR);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_TezWithEmptyState() {
+  public void determineApplicationIds_TezWithEmptyState() {
     // Act
     List<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.TEZ);
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.TEZ);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_TezWithAppIdInSessionState() {
+  public void determineApplicationIds_TezWithAppIdInSessionState() {
     ApplicationId expectedApplicationId =
         ApplicationId.newInstance(/* clusterTimestamp= */ 123, /* id= */ 456);
     SessionState sessionState = createDefaultSessionState(conf);
@@ -119,7 +119,7 @@ public class ApplicationIdRetrieverTest {
 
     // Act
     List<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.TEZ);
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.TEZ);
 
     // Assert
     assertThat(applicationId).containsExactly(expectedApplicationId);

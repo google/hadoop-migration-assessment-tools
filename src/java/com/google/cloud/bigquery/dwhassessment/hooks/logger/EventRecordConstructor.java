@@ -148,7 +148,7 @@ public class EventRecordConstructor {
             .set("OperationId", hookContext.getOperationId());
 
     List<ImmutableMap<String, String> > listOfApplicationData = new ArrayList<>();
-    ApplicationIdRetriever.determineApplicationId(conf, getExecutionMode(plan))
+    ApplicationIdRetriever.determineApplicationIds(conf, getExecutionMode(plan))
             .forEach(applicationId -> {
               ImmutableMap.Builder<String, String> applicationDataMap = ImmutableMap.builder();
 
@@ -267,12 +267,7 @@ public class EventRecordConstructor {
 
   private static Optional<String> generateYarnApplicationJson(List<ImmutableMap<String, String> > listOfApplicationData) {
     JSONArray jsonArray = new JSONArray();
-    listOfApplicationData.forEach(
-        applicationData -> {
-          JSONObject jsonObject = new JSONObject(applicationData);
-          jsonArray.put(jsonObject);
-        }
-    );
+    listOfApplicationData.stream().map(JSONObject::new).forEach(jsonArray::put);
     return jsonArray.length() > 0 ? Optional.of(jsonArray.toString()) : Optional.empty();
   }
 
