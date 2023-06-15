@@ -20,6 +20,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils.cr
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +31,8 @@ import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.generic.GenericRecord;
@@ -205,17 +208,70 @@ public class EventRecordConstructorTest {
   }
 
   @Test
+  public void postExecHook_withNoYarnApplicationData() {
+    hookContext.setHookType(HookType.POST_EXEC_HOOK);
+    queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of()));
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat(record.get("ApplicationData")).isNull();
+    assertThat(record.get("HiveHostName")).isNull();
+    assertThat(record.get("Queue")).isNull();
+  }
+  @Test
   public void postExecHook_recordsYarnApplicationDataWhenPossible() {
     hookContext.setHookType(HookType.POST_EXEC_HOOK);
-    queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of(new ExecDriver())));
-    state.getMapRedStats().put("Stage-1", createMapRedStats("job_1685098059769_1951"));
+    queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of(new ExecDriver(), new ExecDriver())));
+    Map<String, MapRedStats> a = ImmutableMap.<String, MapRedStats>builder()
+        .put("Stage-1", createMapRedStats("job_1685098059769_1000"))
+        .put("Stage-2", createMapRedStats("job_1685098059769_2000")).build();
+    state.getMapRedStats().putAll(a);
+    ApplicationId applicationId1 = ApplicationId.newInstance(1685098059769L, 1000);
+    ApplicationId applicationId2 = ApplicationId.newInstance(1685098059769L, 2000);
+    ApplicationReport report1 = constructApplicationReport(applicationId1);
+    ApplicationReport report2 = constructApplicationReport(applicationId2);
+    String expectedJson =
+        "[{\"YarnApplicationId\":\"application_1685098059769_1000\",\"HiveHostName\":\"test_host\",\"Queue\":\"test_queue\",\"YarnProcess\":\"10000.6\",\"YarnApplicationType\":\"MR\",\"YarnApplicationState\":\"RUNNING\",\"YarnDiagnostics\":\"test_diagnostics\",\"YarnCurrentApplicationAttemptId\":\"appattempt_1685098059769_1000_000001\",\"YarnUser\":\"test_user\",\"YarnStartTime\":\"100000\",\"YarnFinishTime\":\"200000\",\"YarnFinalApplicationStatus\":\"UNDEFINED\",\"YarnReportNumUsedContainers\":\"3\",\"YarnReportNumReservedContainers\":\"4\",\"YarnReportMemorySeconds\":\"100\",\"YarnReportVcoreSeconds\":\"400\",\"YarnReportQueueUsagePercentage\":\"90.5\",\"YarnReportClusterUsagePercentage\":\"64.5\",\"YarnReportPreemptedMemorySeconds\":\"200\",\"YarnReportPreemptedVcoreSeconds\":\"300\",\"YarnReportUsedResources\":\"<memory:800,"
+            + " vCores:5>\",\"YarnReportUsedResourcesMemory\":\"800\",\"YarnReportUsedResourcesVcore\":\"5\",\"YarnReportReservedResources\":\"<memory:600,"
+            + " vCores:8>\",\"YarnReportReservedResourcesMemory\":\"600\",\"YarnReportReservedResourcesVcore\":\"8\",\"YarnReportNeededResources\":\"<memory:700,"
+            + " vCores:4>\",\"YarnReportNeededResourcesMemory\":\"700\",\"YarnReportNeededResourcesVcore\":\"4\"},"
+            + "{\"YarnApplicationId\":\"application_1685098059769_2000\",\"HiveHostName\":\"test_host\",\"Queue\":\"test_queue\",\"YarnProcess\":\"10000.6\",\"YarnApplicationType\":\"MR\",\"YarnApplicationState\":\"RUNNING\",\"YarnDiagnostics\":\"test_diagnostics\",\"YarnCurrentApplicationAttemptId\":\"appattempt_1685098059769_2000_000001\",\"YarnUser\":\"test_user\",\"YarnStartTime\":\"100000\",\"YarnFinishTime\":\"200000\",\"YarnFinalApplicationStatus\":\"UNDEFINED\",\"YarnReportNumUsedContainers\":\"3\",\"YarnReportNumReservedContainers\":\"4\",\"YarnReportMemorySeconds\":\"100\",\"YarnReportVcoreSeconds\":\"400\",\"YarnReportQueueUsagePercentage\":\"90.5\",\"YarnReportClusterUsagePercentage\":\"64.5\",\"YarnReportPreemptedMemorySeconds\":\"200\",\"YarnReportPreemptedVcoreSeconds\":\"300\",\"YarnReportUsedResources\":\"<memory:800,"
+            + " vCores:5>\",\"YarnReportUsedResourcesMemory\":\"800\",\"YarnReportUsedResourcesVcore\":\"5\",\"YarnReportReservedResources\":\"<memory:600,"
+            + " vCores:8>\",\"YarnReportReservedResourcesMemory\":\"600\",\"YarnReportReservedResourcesVcore\":\"8\",\"YarnReportNeededResources\":\"<memory:700,"
+            + " vCores:4>\",\"YarnReportNeededResourcesMemory\":\"700\",\"YarnReportNeededResourcesVcore\":\"4\"}]";
+
+    when(yarnApplicationRetrieverMock.retrieve(any(), eq(applicationId1))).thenReturn(Optional.of(report1));
+    when(yarnApplicationRetrieverMock.retrieve(any(), eq(applicationId2))).thenReturn(Optional.of(report2));
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat(record.get("ApplicationData")).isEqualTo(expectedJson);
+    assertThat(record.get("HiveHostName")).isEqualTo("test_host");
+    assertThat(record.get("Queue")).isEqualTo("test_queue");
+  }
+
+  @Test
+  public void onFailureHook_success() {
+    hookContext.setHookType(HookType.ON_FAILURE_HOOK);
+
+    // Act
+    Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
+
+    // Assert
+    assertThat(record).hasValue(TestUtils.createPostExecRecord(EventStatus.FAIL));
+  }
+
+  private ApplicationReport constructApplicationReport(ApplicationId applicationId) {
     ApplicationReport report = Records.newRecord(ApplicationReport.class);
-    ApplicationId applicationId = ApplicationId.newInstance(1685098059769L, 1951);
     ApplicationAttemptId applicationAttemptId = ApplicationAttemptId.newInstance(applicationId, 1);
     report.setQueue("test_queue");
     report.setHost("test_host");
     report.setProgress(10000.6f);
-    report.setApplicationType("TEZ");
+    report.setApplicationType("MR");
     report.setYarnApplicationState(YarnApplicationState.RUNNING);
     report.setDiagnostics("test_diagnostics");
     report.setCurrentApplicationAttemptId(applicationAttemptId);
@@ -223,7 +279,6 @@ public class EventRecordConstructorTest {
     report.setStartTime(100000L);
     report.setFinishTime(200000L);
     report.setFinalApplicationStatus(FinalApplicationStatus.UNDEFINED);
-
     ApplicationResourceUsageReport applicationResourceUsageReport = Records.newRecord(ApplicationResourceUsageReport.class);
     applicationResourceUsageReport.setMemorySeconds(100L);
     applicationResourceUsageReport.setVcoreSeconds(400L);
@@ -240,55 +295,7 @@ public class EventRecordConstructorTest {
     applicationResourceUsageReport.setNeededResources(neededResources);
     applicationResourceUsageReport.setUsedResources(usedResources);
     report.setApplicationResourceUsageReport(applicationResourceUsageReport);
-    when(yarnApplicationRetrieverMock.retrieve(any(), any())).thenReturn(Optional.of(report));
-
-    // Act
-    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
-
-    // Assert
-    assertThat(record.get("YarnApplicationId")).isEqualTo("application_1685098059769_1951");
-    assertThat(record.get("HiveHostName")).isEqualTo("test_host");
-    assertThat(record.get("Queue")).isEqualTo("test_queue");
-
-    assertThat(record.get("YarnProcess")).isEqualTo(10000.6f);
-    assertThat(record.get("YarnApplicationType")).isEqualTo("TEZ");
-    assertThat(record.get("YarnApplicationState")).isEqualTo("RUNNING");
-    assertThat(record.get("YarnDiagnostics")).isEqualTo("test_diagnostics");
-    assertThat(record.get("YarnCurrentApplicationAttemptId")).isEqualTo("appattempt_1685098059769_1951_000001");
-    assertThat(record.get("YarnUser")).isEqualTo("test_user");
-    assertThat(record.get("YarnStartTime")).isEqualTo(100000L);
-    assertThat(record.get("YarnFinishTime")).isEqualTo(200000L);
-    assertThat(record.get("YarnFinalApplicationStatus")).isEqualTo("UNDEFINED");
-
-    assertThat(record.get("YarnReportMemorySeconds")).isEqualTo(100L);
-    assertThat(record.get("YarnReportVcoreSeconds")).isEqualTo(400L);
-    assertThat(record.get("YarnReportClusterUsagePercentage")).isEqualTo(64.5f);
-    assertThat(record.get("YarnReportQueueUsagePercentage")).isEqualTo(90.5f);
-    assertThat(record.get("YarnReportPreemptedMemorySeconds")).isEqualTo(200L);
-    assertThat(record.get("YarnReportPreemptedVcoreSeconds")).isEqualTo(300L);
-    assertThat(record.get("YarnReportNumUsedContainers")).isEqualTo(3);
-    assertThat(record.get("YarnReportNumReservedContainers")).isEqualTo(4);
-
-    assertThat(record.get("YarnReportReservedResources")).isEqualTo("<memory:600, vCores:8>");
-    assertThat(record.get("YarnReportReservedResourcesMemory")).isEqualTo(600L);
-    assertThat(record.get("YarnReportReservedResourcesVcore")).isEqualTo(8);
-    assertThat(record.get("YarnReportNeededResources")).isEqualTo("<memory:700, vCores:4>");
-    assertThat(record.get("YarnReportNeededResourcesMemory")).isEqualTo(700L);
-    assertThat(record.get("YarnReportNeededResourcesVcore")).isEqualTo(4);
-    assertThat(record.get("YarnReportUsedResources")).isEqualTo("<memory:800, vCores:5>");
-    assertThat(record.get("YarnReportUsedResourcesMemory")).isEqualTo(800L);
-    assertThat(record.get("YarnReportUsedResourcesVcore")).isEqualTo(5);
-  }
-
-  @Test
-  public void onFailureHook_success() {
-    hookContext.setHookType(HookType.ON_FAILURE_HOOK);
-
-    // Act
-    Optional<GenericRecord> record = eventRecordConstructor.constructEvent(hookContext);
-
-    // Assert
-    assertThat(record).hasValue(TestUtils.createPostExecRecord(EventStatus.FAIL));
+    return report;
   }
 
   @DataPoints("PostHookTypes")

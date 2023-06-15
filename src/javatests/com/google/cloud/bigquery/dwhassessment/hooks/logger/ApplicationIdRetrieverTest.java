@@ -19,11 +19,11 @@ package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 import static com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils.createDefaultSessionState;
 import static com.google.cloud.bigquery.dwhassessment.hooks.testing.TestUtils.createMapRedStats;
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.tez.TezSessionState;
 import org.apache.hadoop.hive.ql.session.SessionState;
@@ -45,66 +45,69 @@ public class ApplicationIdRetrieverTest {
   }
 
   @Test
-  public void determineLlapApplicationId_unsetHostsConfigValue() {
+  public void determineLlapApplicationIds_unsetHostsConfigValue() {
     // Act
-    Optional<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineLlapApplicationId(conf, ExecutionMode.LLAP);
+    List<ApplicationId> applicationId =
+        ApplicationIdRetriever.determineLlapApplicationIds(conf, ExecutionMode.LLAP);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_unsupportedExecutionMode() {
+  public void determineApplicationIds_unsupportedExecutionMode() {
     // Act
-    Optional<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.DDL);
+    List<ApplicationId> applicationId =
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.DDL);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_MapReduce_success() {
+  public void determineApplicationIds_MapReduce_success() {
     SessionState sessionState = createDefaultSessionState(conf);
 
     sessionState.getMapRedStats().put("Stage-1", createMapRedStats("job_1685098059769_1951"));
     sessionState.getMapRedStats().put("Stage-2", createMapRedStats("job_1685098059769_1949"));
+    List<ApplicationId> expectedList = new ArrayList<>();
+    expectedList.add(ApplicationId.newInstance(/* clusterTimestamp= */ 1685098059769L, /* id= */ 1951));
+    expectedList.add(ApplicationId.newInstance(/* clusterTimestamp= */ 1685098059769L, /* id= */ 1949));
 
     // Act
-    ApplicationId applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR).get();
+    List<ApplicationId> applicationIds =
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.MR);
 
     // Assert
-    assertThat(applicationId.toString()).isEqualTo("application_1685098059769_1951");
+    assertThat(applicationIds).isEqualTo(expectedList);
   }
 
   @Test
-  public void determineApplicationId_MapReduce_malformedJobId() {
+  public void determineApplicationIds_MapReduce_malformedJobId() {
     SessionState sessionState = createDefaultSessionState(conf);
 
     sessionState.getMapRedStats().put("Stage-1", createMapRedStats("malformed_job_id"));
 
     // Act
-    Optional<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.MR);
+    List<ApplicationId> applicationId =
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.MR);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_TezWithEmptyState() {
+  public void determineApplicationIds_TezWithEmptyState() {
     // Act
-    Optional<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.TEZ);
+    List<ApplicationId> applicationId =
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.TEZ);
 
     // Assert
     assertThat(applicationId).isEmpty();
   }
 
   @Test
-  public void determineApplicationId_TezWithAppIdInSessionState() {
+  public void determineApplicationIds_TezWithAppIdInSessionState() {
     ApplicationId expectedApplicationId =
         ApplicationId.newInstance(/* clusterTimestamp= */ 123, /* id= */ 456);
     SessionState sessionState = createDefaultSessionState(conf);
@@ -115,10 +118,10 @@ public class ApplicationIdRetrieverTest {
     sessionState.setTezSession(tezSessionState);
 
     // Act
-    Optional<ApplicationId> applicationId =
-        ApplicationIdRetriever.determineApplicationId(conf, ExecutionMode.TEZ);
+    List<ApplicationId> applicationId =
+        ApplicationIdRetriever.determineApplicationIds(conf, ExecutionMode.TEZ);
 
     // Assert
-    assertThat(applicationId).hasValue(expectedApplicationId);
+    assertThat(applicationId).containsExactly(expectedApplicationId);
   }
 }
