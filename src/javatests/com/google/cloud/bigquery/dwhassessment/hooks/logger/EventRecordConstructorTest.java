@@ -208,6 +208,19 @@ public class EventRecordConstructorTest {
   }
 
   @Test
+  public void postExecHook_withNoYarnApplicationData() {
+    hookContext.setHookType(HookType.POST_EXEC_HOOK);
+    queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of()));
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat(record.get("ApplicationData")).isNull();
+    assertThat(record.get("HiveHostName")).isNull();
+    assertThat(record.get("Queue")).isNull();
+  }
+  @Test
   public void postExecHook_recordsYarnApplicationDataWhenPossible() {
     hookContext.setHookType(HookType.POST_EXEC_HOOK);
     queryPlan.setRootTasks(new ArrayList<>(ImmutableList.of(new ExecDriver(), new ExecDriver())));
