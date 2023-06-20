@@ -123,7 +123,7 @@ public class DatePartitionedRecordsWriterFactory {
           loggerId,
           ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
     } else {
-      LOG.debug(
+      LOG.info(
           "Performed rollover check for logger ID '{}'. Expected rollover time is '{}'",
           loggerId,
           ISO_LOCAL_DATE_TIME.format(rolloverTime.atOffset(ZoneOffset.UTC)));
@@ -141,6 +141,10 @@ public class DatePartitionedRecordsWriterFactory {
     }
 
     currentWriter = null;
+  }
+
+  public Duration getRolloverInterval() {
+    return rolloverInterval;
   }
 
   /**
