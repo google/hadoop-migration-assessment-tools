@@ -121,7 +121,11 @@ public class EventLogger {
         TimeUnit.MILLISECONDS);
 
     LOG.info(
-        "Logger successfully started, waiting for query events. Log directory is '{}'", baseDir);
+        "Logger successfully started, waiting for query events. Log directory is '{}'; rollover"
+            + " interval is '{}' minutes; rollover eligibility check is '{}' minutes",
+        baseDir,
+        recordsWriterFactory.getRolloverInterval().toMinutes(),
+        Duration.ofMillis(rolloverEligibilityIntervalMilliseconds).toMinutes());
   }
 
   public void handle(HookContext hookContext) {
