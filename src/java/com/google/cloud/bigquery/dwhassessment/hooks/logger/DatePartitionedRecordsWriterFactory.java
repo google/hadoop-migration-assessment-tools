@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENTS_FILE_PREFIX;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 import static java.time.temporal.ChronoField.HOUR_OF_DAY;
@@ -204,7 +205,7 @@ public class DatePartitionedRecordsWriterFactory {
   }
 
   private String constructFileName() {
-    return "dwhassessment_"
+    return QUERY_EVENTS_FILE_PREFIX
         + LOG_TIME_FORMAT.format(clock.instant().atOffset(ZoneOffset.UTC))
         + "_"
         + loggerId
