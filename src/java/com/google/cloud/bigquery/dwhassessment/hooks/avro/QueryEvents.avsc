@@ -249,6 +249,14 @@
       "default": null
     },
     {
+      "name": "YarnApplicationId",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
       "name": "DatabasesRead",
       "type": [
         {
@@ -270,14 +278,6 @@
     },
     {
       "name": "DefaultDatabase",
-      "type": [
-        "null",
-        "string"
-      ],
-      "default": null
-    },
-    {
-      "name": "ApplicationData",
       "type": [
         "null",
         "string"

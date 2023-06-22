@@ -17,10 +17,7 @@
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.llap.registry.impl.LlapRegistryService;
@@ -39,17 +36,17 @@ public class ApplicationIdRetriever {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApplicationIdRetriever.class);
 
-  public static List<ApplicationId> determineApplicationIds(
+  public static Optional<ApplicationId> determineApplicationId(
       HiveConf conf, ExecutionMode executionMode) {
     switch (executionMode) {
       case MR:
-        return determineMapReduceApplicationIds();
+        return determineMapReduceApplicationId();
       case TEZ:
-        return determineTezApplicationIds();
+        return determineTezApplicationId();
       case LLAP:
-        return determineLlapApplicationIds(conf, executionMode);
+        return determineLlapApplicationId(conf, executionMode);
       default:
-        return new ArrayList<>();
+        return Optional.empty();
     }
   }
 
@@ -58,28 +55,27 @@ public class ApplicationIdRetriever {
    * application always have only one queue – if queue changes in the session, new application is
    * created.
    */
-  private static List<ApplicationId> determineTezApplicationIds() {
+  private static Optional<ApplicationId> determineTezApplicationId() {
     SessionState sessionState = SessionState.get();
     if (sessionState != null) {
       TezSessionState tezSessionState = sessionState.getTezSession();
       if (tezSessionState != null) {
         TezClient tezClient = tezSessionState.getSession();
         if (tezClient != null) {
-          ApplicationId applicationId = tezClient.getAppMasterApplicationId();
-          return applicationId != null ? Collections.singletonList(tezClient.getAppMasterApplicationId()) : new ArrayList<>();
+          return Optional.ofNullable(tezClient.getAppMasterApplicationId());
         }
       }
     }
 
     LOG.info("Failed to retrieve Application ID from Tez session");
-    return new ArrayList<>();
+    return Optional.empty();
   }
 
   /**
    * Retrieves Application ID from the first MapReduce job as multiple MapReduce jobs created for a
    * single query are submitted to the same queue.
    */
-  private static List<ApplicationId> determineMapReduceApplicationIds() {
+  private static Optional<ApplicationId> determineMapReduceApplicationId() {
     return SessionState.get().getMapRedStats().values().stream()
         .map(MapRedStats::getJobId)
         .flatMap(
@@ -93,14 +89,15 @@ public class ApplicationIdRetriever {
                     jobId);
                 return Stream.empty();
               }
-            }).collect(Collectors.toList());
+            })
+        .findFirst();
   }
 
   /**
    * Retrieve Application ID for Llap daemon. They are long-living YARN applications, using the same
    * queue, so it should be relatively static.
    */
-  public static List<ApplicationId> determineLlapApplicationIds(
+  public static Optional<ApplicationId> determineLlapApplicationId(
       HiveConf conf, ExecutionMode mode) {
     // Note: for now, LLAP is only supported in Tez tasks. Will never come to MR; others may
     // be added here, although this is only necessary to have extra debug information.
@@ -110,7 +107,7 @@ public class ApplicationIdRetriever {
       String hosts = HiveConf.getVar(conf, HiveConf.ConfVars.LLAP_DAEMON_SERVICE_HOSTS);
       if (hosts != null && !hosts.isEmpty()) {
         try {
-          return Collections.singletonList(LlapRegistryService.getClient(conf).getApplicationId());
+          return Optional.of(LlapRegistryService.getClient(conf).getApplicationId());
         } catch (IOException e) {
           LOG.error("Error trying to get llap instance. Hosts: {}", hosts, e);
         }
@@ -119,6 +116,6 @@ public class ApplicationIdRetriever {
       }
     }
 
-    return new ArrayList<>();
+    return Optional.empty();
   }
 }

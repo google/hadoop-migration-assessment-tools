@@ -25,13 +25,9 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
-import com.google.common.collect.ImmutableMap;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -53,7 +49,6 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Group;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
@@ -147,37 +142,18 @@ public class EventRecordConstructor {
             .set("PerfObject", dumpPerfData(hookContext.getPerfLogger()))
             .set("OperationId", hookContext.getOperationId());
 
-    List<ImmutableMap<String, String> > listOfApplicationData = new ArrayList<>();
-    ApplicationIdRetriever.determineApplicationIds(conf, getExecutionMode(plan))
-            .forEach(applicationId -> {
-              ImmutableMap.Builder<String, String> applicationDataMap = ImmutableMap.builder();
-
-              applicationDataMap.put("YarnApplicationId", applicationId.toString());
-              yarnApplicationRetriever.retrieve(conf, applicationId)
+    ApplicationIdRetriever.determineApplicationId(conf, getExecutionMode(plan))
+        .ifPresent(
+            applicationId -> {
+              recordBuilder.set("YarnApplicationId", applicationId.toString());
+              yarnApplicationRetriever
+                  .retrieve(conf, applicationId)
                   .ifPresent(
                       applicationReport -> {
-                        recordBuilder
-                            .set("HiveHostName", applicationReport.getHost())
-                            .set("Queue", applicationReport.getQueue());
-                        applicationDataMap.put("HiveHostName", applicationReport.getHost())
-                            .put("Queue", applicationReport.getQueue())
-                            .put("YarnProcess", String.valueOf(applicationReport.getProgress()))
-                            .put("YarnApplicationType", applicationReport.getApplicationType())
-                            .put("YarnApplicationState", applicationReport.getYarnApplicationState().toString())
-                            .put("YarnDiagnostics", applicationReport.getDiagnostics())
-                            .put("YarnCurrentApplicationAttemptId", applicationReport.getCurrentApplicationAttemptId().toString())
-                            .put("YarnUser", applicationReport.getUser())
-                            .put("YarnStartTime", String.valueOf(applicationReport.getStartTime()))
-                            .put("YarnFinishTime", String.valueOf(applicationReport.getFinishTime()))
-                            .put("YarnFinalApplicationStatus", applicationReport.getFinalApplicationStatus().toString());
-                        retrieveApplicationResourceUsageReport(applicationReport.getApplicationResourceUsageReport(), applicationDataMap);
-                      }
-                  );
-              listOfApplicationData.add(applicationDataMap.build());
+                        recordBuilder.set("HiveHostName", applicationReport.getHost());
+                        recordBuilder.set("Queue", applicationReport.getQueue());
+                      });
             });
-
-    generateYarnApplicationJson(listOfApplicationData)
-        .ifPresent(applications -> recordBuilder.set("ApplicationData", applications));
 
     dumpTezCounters(plan)
         .map(Optional::of)
@@ -185,90 +161,6 @@ public class EventRecordConstructor {
         .ifPresent(counters -> recordBuilder.set("CountersObject", counters));
 
     return recordBuilder.build();
-  }
-
-  private void retrieveApplicationResourceUsageReport(
-      ApplicationResourceUsageReport applicationResourceUsageReport,
-      ImmutableMap.Builder<String, String> applicationDataMap
-  ) {
-    ImmutableMap<String, String> reportMethods =
-        ImmutableMap.<String, String>builder()
-            .put("getNumUsedContainers", "YarnReportNumUsedContainers")
-            .put("getNumReservedContainers", "YarnReportNumReservedContainers")
-            .put("getMemorySeconds", "YarnReportMemorySeconds")
-            .put("getVcoreSeconds", "YarnReportVcoreSeconds")
-            .put("getQueueUsagePercentage", "YarnReportQueueUsagePercentage")
-            .put("getClusterUsagePercentage", "YarnReportClusterUsagePercentage")
-            .put("getPreemptedMemorySeconds", "YarnReportPreemptedMemorySeconds")
-            .put("getPreemptedVcoreSeconds", "YarnReportPreemptedVcoreSeconds")
-            .build();
-
-    reportMethods.forEach(
-        (methodName, fieldName) ->
-            callMethodWithReflection(
-                methodName, fieldName, applicationDataMap, applicationResourceUsageReport));
-
-    applicationDataMap.put(
-        "YarnReportUsedResources",
-        String.valueOf(applicationResourceUsageReport.getUsedResources().toString()));
-    callMethodWithReflection(
-        "getMemorySize",
-        "YarnReportUsedResourcesMemory",
-        applicationDataMap,
-        applicationResourceUsageReport.getUsedResources());
-    callMethodWithReflection(
-        "getVirtualCores",
-        "YarnReportUsedResourcesVcore",
-        applicationDataMap,
-        applicationResourceUsageReport.getUsedResources());
-
-    applicationDataMap.put(
-        "YarnReportReservedResources",
-        String.valueOf(applicationResourceUsageReport.getReservedResources().toString()));
-    callMethodWithReflection(
-        "getMemorySize",
-        "YarnReportReservedResourcesMemory",
-        applicationDataMap,
-        applicationResourceUsageReport.getReservedResources());
-    callMethodWithReflection(
-        "getVirtualCores",
-        "YarnReportReservedResourcesVcore",
-        applicationDataMap,
-        applicationResourceUsageReport.getReservedResources());
-
-    applicationDataMap.put(
-        "YarnReportNeededResources",
-        String.valueOf(applicationResourceUsageReport.getNeededResources().toString()));
-    callMethodWithReflection(
-        "getMemorySize",
-        "YarnReportNeededResourcesMemory",
-        applicationDataMap,
-        applicationResourceUsageReport.getNeededResources());
-    callMethodWithReflection(
-        "getVirtualCores",
-        "YarnReportNeededResourcesVcore",
-        applicationDataMap,
-        applicationResourceUsageReport.getNeededResources());
-
-  }
-
-  private <T> void callMethodWithReflection(
-      String methodName, String fieldNameInAvro, ImmutableMap.Builder<String, String> applicationDataMap, T object) {
-    try {
-      Method method = Class.forName(object.getClass().getName()).getMethod(methodName);
-      applicationDataMap.put(fieldNameInAvro, String.valueOf(method.invoke(object)));
-    } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-      LOG.warn("Failed to invoke method '{}'", methodName);
-    } catch (ClassNotFoundException e) {
-      LOG.warn(
-          "Failed to find class {} to invoke method '{}'", object.getClass().getName(), methodName);
-    }
-  }
-
-  private static Optional<String> generateYarnApplicationJson(List<ImmutableMap<String, String> > listOfApplicationData) {
-    JSONArray jsonArray = new JSONArray();
-    listOfApplicationData.stream().map(JSONObject::new).forEach(jsonArray::put);
-    return jsonArray.length() > 0 ? Optional.of(jsonArray.toString()) : Optional.empty();
   }
 
   /**
