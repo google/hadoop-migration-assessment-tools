@@ -20,6 +20,8 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_QUEUE_CAPACITY;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.DEFAULT_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL_DURATION;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.DEFAULT_ROLLOVER_INTERVAL_DURATION;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -55,9 +57,6 @@ public class EventLogger {
   private static final int MAX_RETRIES = 2;
   private static final Duration SHUTDOWN_WAIT_TIME = Duration.ofSeconds(5);
   private static final int QUERY_EVENTS_QUEUE_DEFAULT_SIZE = 64;
-  private static final Duration DEFAULT_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL_DURATION =
-      Duration.ofMinutes(10);
-  private static final Duration DEFAULT_ROLLOVER_INTERVAL_DURATION = Duration.ofMinutes(10);
 
   private final DatePartitionedRecordsWriterFactory recordsWriterFactory;
   private final EventRecordConstructor eventRecordConstructor;
