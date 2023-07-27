@@ -27,10 +27,10 @@
 set -e
 
 #Variables
-export SCRIPT_WORKING_DIR="${pwd}"
-export SCRIPT_DIR="$(dirname "$0")"
+export SCRIPT=$(realpath "$0")
+export SCRIPT_DIR=$(dirname "$SCRIPT")
 export SCRIPT_PARENT_DIR="$(dirname -- "$SCRIPT_DIR")"
-export REPO_DIR="$(dirname -- "SCRIPT_PARENT_DIR")"
+export REPO_DIR="$(dirname -- "$SCRIPT_PARENT_DIR")"
 
 cd "${REPO_DIR}"
 

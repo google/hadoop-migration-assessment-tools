@@ -35,8 +35,8 @@ echo Enter token:
 read -s -r GIT_CLIENT_TOKEN
 
 #Variables
-export SCRIPT_WORKING_DIR="${pwd}"
-export RELEASE_SCRIPT_DIR="$(dirname "$0")"
+export SCRIPT=$(realpath "$0")
+export RELEASE_SCRIPT_DIR="$(dirname "$SCRIPT")"
 export SCRIPT_PARENT_DIR="$(dirname -- "$RELEASE_SCRIPT_DIR")"
 export REPO_DIR="$(dirname -- "$SCRIPT_PARENT_DIR")"
 export RELEASE_OUTPUT_FILE="${REPO_DIR}/bazel-bin/dist/hadoop-migration-assessment-hooks.zip"
@@ -58,16 +58,16 @@ if [[ -z "${USE_TAG}" ]]; then
     err "No previous git tag found and it was not provided with USE_TAG env"
   fi
   VERSION="$(increment_tag_version ${LAST_GIT_TAG})"
-  log "Will create new version ${VERSION}"
+  log "Will create new version '${VERSION}'"
 
   if [ "$(git tag -l ${VERSION})" ]; then
-    err "ERROR! Tag for ${VERSION} already exists!"
+    err "ERROR! Tag for '${VERSION}' already exists!"
   fi
 
   code="$(http_get_error_code "Accept: application/vnd.github.v3+json" \
     "https://api.github.com/repos/google/hadoop-migration-assessment-tools/releases/tags/${VERSION}")"
   if [ "${code}" != "404" ]; then
-    err "ERROR! Release with ${VERSION} tag version name already exists or http failed! Http code is ${code}"
+    err "ERROR! Release with '${VERSION}' tag version name already exists or http failed! Http code is ${code}"
   fi
 else
   VERSION="${USE_TAG}"
@@ -78,11 +78,11 @@ else
   git checkout tags/"${VERSION}" -b "${VERSION}-release"
 fi
 
-log "Version name ${VERSION} verified"
+log "Version name '${VERSION}' verified"
 
 # Run build and integration tests
 cd "${SCRIPT_WORKING_DIR}"
-log "Build script : ${BUILD_SCRIPT}, currend dir $(pwd)"
+log "Build script: '${BUILD_SCRIPT}', current dir '$(pwd)'"
 bash "${BUILD_SCRIPT}"
 
 # revert to initial state after running build script
@@ -100,7 +100,7 @@ log "Prepare release notes"
 output="$(http_post_check_status "200" "Accept: application/vnd.github.v3+json" \
   "https://api.github.com/repos/google/hadoop-migration-assessment-tools/releases/generate-notes" \
   '{"tag_name":"'${VERSION}'","previous_tag_name":"'${LAST_GIT_TAG}'"}')"
-release_body="$(jq -r '.body' <<<$output)"
+release_body="$(jq -r '.body' <<< "$output")"
 
 log "Create release"
 
@@ -119,12 +119,12 @@ response="$(http_post_check_status "201" "Accept: application/vnd.github.v3+json
 log "Append zip file to the release"
 
 # Attach release binary file to the release
-release_id="$(jq -r '.id' <<<${response})"
+release_id="$(jq -r '.id' <<<"${response}")"
 curl \
-  --data-binary @${RELEASE_OUTPUT_FILE} \
+  --data-binary @"${RELEASE_OUTPUT_FILE}" \
   --user "${GIT_CLIENT_ID}:${GIT_CLIENT_TOKEN}" \
   -H "Content-Type: application/octet-stream" \
-  "https://${GIT_RELEASES_USERNAME}:${GIT_PSW}@uploads.github.com/repos/google/hadoop-migration-assessment-tools/releases/${release_id}/assets?name=hadoop-migration-assessment-hooks-${VERSION}.zip"
+  "https://uploads.github.com/repos/google/hadoop-migration-assessment-tools/releases/${release_id}/assets?name=hadoop-migration-assessment-hooks-${VERSION}.zip"
 
 log "Release was published"
 

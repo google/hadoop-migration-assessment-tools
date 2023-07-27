@@ -23,12 +23,12 @@
 # set -x
 
 err() {
-  printf '%s\n' "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   exit 1
 }
 
 log() {
-  printf '%s\n' "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*"
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*"
 }
 
 #######################################
@@ -41,10 +41,12 @@ log() {
 #   A http status code
 #######################################
 http_get_error_code() {
-  http_header="$1"
-  http_url="$2"
+  local http_header="$1"
+  local http_url="$2"
 
-  http_response="$(curl -s -w "%{http_code}" -u "${GIT_CLIENT_ID}:${GIT_CLIENT_TOKEN}" -H ${http_header} ${http_url})"
+  local http_response="$(curl -s -w "%{http_code}" \
+    -u "${GIT_CLIENT_ID}:${GIT_CLIENT_TOKEN}" \
+    -H ${http_header} ${http_url})"
   echo $(tail -n1 <<<"${http_response}")
 }
 
@@ -61,25 +63,25 @@ http_get_error_code() {
 #   A http status code
 #######################################
 http_post_check_status() {
-  expected_http_status="$1"
-  http_header="$2"
-  http_url="$3"
-  post_data="$4"
+  local expected_http_status="$1"
+  local http_header="$2"
+  local http_url="$3"
+  local post_data="$4"
 
-  http_response="$(curl -s -w "%{http_code}" \
+  local http_response="$(curl -s -w "%{http_code}" \
     -X POST \
     -u "${GIT_CLIENT_ID}:${GIT_CLIENT_TOKEN}" \
     -H ${http_header} ${http_url} \
     -d "${post_data}")"
 
   # get the last line
-  http_response_code="$(tail -n1 <<<"${http_response}")"
+  local http_response_code="$(tail -n1 <<<"${http_response}")"
   # get all but the last line which contains the status code
-  http_response_content="$(sed '$ d' <<<"${http_response}")"
+  local http_response_content="$(sed '$ d' <<<"${http_response}")"
 
   if [ "${http_response_code}" != "${expected_http_status}" ]; then
     err "ERROR! Http request failed with code ${http_response_code}," \
-      "response content is ${http_response_content}" # write error message to stderr
+      "response content is ${http_response_content}"
   fi
   echo "${http_response_content:3}"
 }
