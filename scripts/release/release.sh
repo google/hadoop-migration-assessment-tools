@@ -50,8 +50,6 @@ export LAST_GIT_TAG="$(git tag |
   sort -V |
   tail -1)"
 
-use_existing_tag=false
-
 # Do we already know what version we want to release?
 if [[ -z "${USE_TAG}" ]]; then
   if [[ -z "${LAST_GIT_TAG}" ]]; then
@@ -74,7 +72,6 @@ else
   if [[ "${LAST_RELEASE_TAG}" ]]; then
     LAST_GIT_TAG=${LAST_RELEASE_TAG}
   fi
-  use_existing_tag=true
   git checkout tags/"${VERSION}" -b "${VERSION}-release"
 fi
 
@@ -88,18 +85,18 @@ bash "${BUILD_SCRIPT}"
 # revert to initial state after running build script
 cd "${REPO_DIR}"
 
-# create and register tag for this release if it was not manually provided
-if ! [[ $use_existing_tag ]]; then
-  log "Create new tag"
-  git tag -a "${VERSION}" -m "${VERSION}"
-  git push "https://github.com/google/hadoop-migration-assessment-tools.git" "${VERSION}"
-fi
-
 log "Prepare release notes"
 
 output="$(http_post_check_status "200" "Accept: application/vnd.github.v3+json" \
   "https://api.github.com/repos/google/hadoop-migration-assessment-tools/releases/generate-notes" \
-  '{"tag_name":"'${VERSION}'","previous_tag_name":"'${LAST_GIT_TAG}'"}')"
+  "$(cat << EOF
+{
+  "tag_name": "${VERSION}",
+  "previous_tag_name": "${LAST_GIT_TAG}"
+}
+EOF
+)"
+)"
 release_body="$(jq -r '.body' <<< "$output")"
 
 log "Create release"
