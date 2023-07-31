@@ -47,6 +47,7 @@ import org.apache.hadoop.hive.ql.exec.mr.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext.HookType;
+import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.TezWork;
@@ -195,6 +196,22 @@ public class EventRecordConstructorTest {
 
     // Assert
     assertThat(record).hasValue(TestUtils.createPostExecRecord(EventStatus.SUCCESS));
+  }
+
+  @Test
+  public void postExecHook_capturesAllEntriesFromPerfLogger_success() {
+    hookContext.setHookType(HookType.POST_EXEC_HOOK);
+    PerfLogger perfLogger = PerfLogger.getPerfLogger(state.getConf(), false);
+    perfLogger.PerfLogBegin("test_caller", "test_method_1");
+    perfLogger.PerfLogEnd("test_caller", "test_method_1");
+    perfLogger.PerfLogBegin("test_caller", "test_method_2");
+
+    // Act
+    GenericRecord record = eventRecordConstructor.constructEvent(hookContext).get();
+
+    // Assert
+    assertThat((String) record.get("PerfObject")).contains("test_method_1");
+    assertThat((String) record.get("PerfObject")).contains("test_method_2");
   }
 
   @Test
