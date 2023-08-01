@@ -92,7 +92,7 @@ public class EventLogger {
       baseDir = null;
       LOG.error(
           "Log dir configuration key '{}' is not set, logging disabled.",
-          HIVE_QUERY_EVENTS_QUEUE_CAPACITY.getConfName());
+          HIVE_QUERY_EVENTS_BASE_PATH.getConfName());
     }
 
     recordsWriterFactory = createRecordsWriterFactory(baseDir, conf, clock);
@@ -204,7 +204,7 @@ public class EventLogger {
       GenericRecord event, int retryCount, UncheckedIOException writeException) {
     if (retryCount < MAX_RETRIES) {
       LOG.warn(
-          "Error writing proto message for query {}, eventType: {}, retryCount: {}",
+          "Error writing record for query {}, eventType: {}, retryCount: {}",
           event.get("QueryId"),
           event.get("EventType"),
           retryCount,
@@ -212,7 +212,7 @@ public class EventLogger {
       LOG.trace("Exception", writeException);
     } else {
       LOG.error(
-          "Error writing proto message for query {}, eventType: {}",
+          "Error writing record for query {}, eventType: {}",
           event.get("QueryId"),
           event.get("EventType"),
           writeException);
