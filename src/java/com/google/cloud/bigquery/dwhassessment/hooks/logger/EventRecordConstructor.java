@@ -243,11 +243,18 @@ public class EventRecordConstructor {
     return outerObj.length() > 0 ? Optional.of(outerObj.toString()) : Optional.empty();
   }
 
-  private static String dumpPerfData(PerfLogger perfLogger) {
+  private String dumpPerfData(PerfLogger perfLogger) {
     JSONObject perfObj = new JSONObject();
+    long now = clock.millis();
 
-    for (String key : perfLogger.getEndTimes().keySet()) {
-      perfObj.put(key, perfLogger.getDuration(key));
+    for (String key : perfLogger.getStartTimes().keySet()) {
+      long duration = perfLogger.getDuration(key);
+      // Some perf logger entries are finished after the hook. Make the best effort to capture them
+      // here with the duration at the current time.
+      if (duration == 0L) {
+        duration = now - perfLogger.getStartTime(key);
+      }
+      perfObj.put(key, duration);
     }
 
     return perfObj.toString();
