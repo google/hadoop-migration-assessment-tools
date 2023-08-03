@@ -32,5 +32,7 @@ public final class LoggingHookConstants {
       Duration.ofMinutes(10);
   public static final Duration DEFAULT_ROLLOVER_INTERVAL_DURATION = Duration.ofHours(1);
 
+  public static final String LOGGER_NAME = "MigrationAssessmentLoggingHook";
+
   private LoggingHookConstants() {}
 }

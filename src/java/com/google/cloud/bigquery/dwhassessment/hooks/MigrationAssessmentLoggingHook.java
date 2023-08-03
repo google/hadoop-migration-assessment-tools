@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks;
 
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.LOGGER_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
 
@@ -29,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /** Hook, which captures query events and stores them as {@link GenericRecord}. */
 public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MigrationAssessmentLoggingHook.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LOGGER_NAME);
 
   private static final String version = getHiveVersion();
 
