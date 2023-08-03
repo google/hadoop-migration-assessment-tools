@@ -1,10 +1,11 @@
 # Hadoop Migration Assessment Tools
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This repository contains tools to enable Hadoop users in collecting required data for Migration Assessment service.
+This repository contains tools to enable Hadoop users in collecting required data required by Migration Assessment service.
 
 ## License
 
-Copyright 2022 Google LLC
+Copyright 2022-2023 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,28 +19,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-## Building 
+## Contributing
 
-Install bazel:
-
-```
-sudo apt-get update
-sudo apt-get install bazel
-```
-
-Build the dist zip files:
-
-```
-bazel build //dist:all
-```
-
-Zip files will be available under `bazel-bin/dist` directory.
-
-## Testing
-
-Run all tests:
-
-```
-bazel test //...
-```
-
+Contributing instructions are available at the following locations: [link](docs/contributing.md).
