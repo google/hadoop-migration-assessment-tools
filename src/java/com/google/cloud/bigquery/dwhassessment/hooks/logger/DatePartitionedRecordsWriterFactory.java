@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.LOGGER_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENTS_FILE_PREFIX;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -62,8 +63,7 @@ public class DatePartitionedRecordsWriterFactory {
           .appendFraction(NANO_OF_SECOND, 0, 9, true)
           .toFormatter();
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(DatePartitionedRecordsWriterFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LOGGER_NAME);
   private static final FsPermission DIR_PERMISSION = FsPermission.createImmutable((short) 1023);
 
   private final Path basePath;
@@ -105,6 +105,7 @@ public class DatePartitionedRecordsWriterFactory {
       }
       currentWriter.writeMessage(event);
       currentWriter.flush();
+      LOG.debug("Wrote query '{}', event type '{}'", event.get("QueryId"), event.get("EventType"));
     } catch (IOException e) {
       // Something wrong with writer – close and reopen.
       close();
@@ -156,7 +157,7 @@ public class DatePartitionedRecordsWriterFactory {
     String fileName = constructFileName();
     Path filePath = getPathForDate(getCurrentDate(), fileName);
 
-    LOG.info("Creating new query events writer for file name {}", filePath.getName());
+    LOG.info("Creating new query events writer for file name '{}'", filePath.getName());
 
     return new RecordsWriter(conf, filePath, schema);
   }

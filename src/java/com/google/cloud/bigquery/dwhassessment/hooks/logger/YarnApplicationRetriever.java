@@ -16,6 +16,8 @@
 
 package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.LOGGER_NAME;
+
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -29,7 +31,7 @@ import org.slf4j.LoggerFactory;
 /** Helper for retrieving YARN Application Report by its ID. */
 public class YarnApplicationRetriever {
 
-  private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationRetriever.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LOGGER_NAME);
 
   public YarnApplicationRetriever() {}
 

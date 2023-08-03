@@ -22,6 +22,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsCon
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.HIVE_QUERY_EVENTS_ROLLOVER_INTERVAL;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.DEFAULT_ROLLOVER_ELIGIBILITY_CHECK_INTERVAL_DURATION;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.DEFAULT_ROLLOVER_INTERVAL_DURATION;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.LOGGER_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -52,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * file.
  */
 public class EventLogger {
-  private static final Logger LOG = LoggerFactory.getLogger(EventLogger.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LOGGER_NAME);
 
   private static final int MAX_RETRIES = 2;
   private static final Duration SHUTDOWN_WAIT_TIME = Duration.ofSeconds(5);
@@ -146,6 +147,7 @@ public class EventLogger {
   }
 
   private void tryWriteEvent(GenericRecord event, HookType hookType) {
+    LOG.debug("Trying to handle an event '{}' for query '{}'", hookType, event.get("QueryId"));
     try {
       // ScheduledThreadPoolExecutor uses an unbounded queue which cannot be replaced with a
       // bounded queue.
@@ -154,10 +156,10 @@ public class EventLogger {
         logWriter.execute(() -> writeEventWithRetries(event));
       } else {
         LOG.warn(
-            "Writer queue full ignoring event {} for query {}", hookType, event.get("QueryId"));
+            "Writer queue full. Ignoring event '{}' for query '{}'", hookType, event.get("QueryId"));
       }
     } catch (RejectedExecutionException e) {
-      LOG.warn("Writer queue full ignoring event {} for query {}", hookType, event.get("QueryId"));
+      LOG.warn("Writer queue full. Ignoring event '{}' for query '{}'", hookType, event.get("QueryId"));
     }
   }
 
@@ -191,6 +193,10 @@ public class EventLogger {
   private synchronized void writeEventWithRetries(GenericRecord event) {
     for (int retryCount = 0; retryCount <= MAX_RETRIES; ++retryCount) {
       try {
+        LOG.debug(
+            "Trying to write query '{}', event type '{}'",
+            event.get("QueryId"),
+            event.get("EventType"));
         recordsWriterFactory.write(event);
         return;
       } catch (UncheckedIOException e) {
@@ -204,7 +210,7 @@ public class EventLogger {
       GenericRecord event, int retryCount, UncheckedIOException writeException) {
     if (retryCount < MAX_RETRIES) {
       LOG.warn(
-          "Error writing record for query {}, eventType: {}, retryCount: {}",
+          "Error writing record for query '{}', eventType: '{}', retryCount: '{}'",
           event.get("QueryId"),
           event.get("EventType"),
           retryCount,
@@ -212,7 +218,7 @@ public class EventLogger {
       LOG.trace("Exception", writeException);
     } else {
       LOG.error(
-          "Error writing record for query {}, eventType: {}",
+          "Error writing record for query '{}', eventType: '{}'",
           event.get("QueryId"),
           event.get("EventType"),
           writeException);
@@ -231,6 +237,7 @@ public class EventLogger {
 
   public void shutdown() {
     if (logWriter != null) {
+      LOG.debug("Shutting down the log writer thread pool executor");
       logWriter.shutdown();
       try {
         logWriter.awaitTermination(SHUTDOWN_WAIT_TIME.getSeconds(), SECONDS);

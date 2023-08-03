@@ -109,7 +109,7 @@ public class ApplicationIdRetriever {
         try {
           return Optional.of(LlapRegistryService.getClient(conf).getApplicationId());
         } catch (IOException e) {
-          LOG.error("Error trying to get llap instance. Hosts: {}", hosts, e);
+          LOG.error("Error trying to get llap instance. Hosts: '{}'", hosts, e);
         }
       } else {
         LOG.info("Cannot determine LLAP instance on client - service hosts are not set");

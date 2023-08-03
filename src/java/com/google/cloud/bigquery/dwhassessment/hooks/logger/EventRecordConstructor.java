@@ -18,6 +18,7 @@ package com.google.cloud.bigquery.dwhassessment.hooks.logger;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.MR_QUEUE_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggerVarsConfig.TEZ_QUEUE_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.HOOK_VERSION;
+import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.LOGGER_NAME;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.LoggingHookConstants.QUERY_EVENT_SCHEMA;
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.getHiveVersion;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.DATABASE;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
 /** Constructor for generic records for given hook event. */
 public class EventRecordConstructor {
 
-  private static final Logger LOG = LoggerFactory.getLogger(EventRecordConstructor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LOGGER_NAME);
 
   private final Clock clock;
   private final YarnApplicationRetriever yarnApplicationRetriever;
@@ -81,7 +82,7 @@ public class EventRecordConstructor {
         return Optional.of(getPostHookEvent(hookContext, EventStatus.FAIL));
     }
 
-    LOG.warn("Ignoring event of type: {}", hookContext.getHookType());
+    LOG.warn("Ignoring event of type: '{}'", hookContext.getHookType());
     return Optional.empty();
   }
 
@@ -125,7 +126,7 @@ public class EventRecordConstructor {
 
   private GenericRecord getPostHookEvent(HookContext hookContext, EventStatus status) {
     QueryPlan plan = hookContext.getQueryPlan();
-    LOG.info("Received post-hook notification for: {}", plan.getQueryId());
+    LOG.info("Received post-hook notification for: '{}'", plan.getQueryId());
     // Make a copy so that we do not modify hookContext conf.
     HiveConf conf = new HiveConf(hookContext.getConf());
 
