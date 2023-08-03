@@ -72,7 +72,6 @@ else
   if [[ "${LAST_RELEASE_TAG}" ]]; then
     LAST_GIT_TAG=${LAST_RELEASE_TAG}
   fi
-  git checkout tags/"${VERSION}" -b "${VERSION}-release"
 fi
 
 log "Version name '${VERSION}' verified"
