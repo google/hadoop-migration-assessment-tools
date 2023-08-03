@@ -31,3 +31,34 @@ All submissions, including submissions by project members, require review. We
 use GitHub pull requests for this purpose. Consult
 [GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
 information on using pull requests.
+
+## Contributing to Logging Hook
+
+### Dependencies
+
+Install bazel:
+
+```
+sudo apt-get update
+sudo apt-get install bazel
+```
+
+### Checkout and compile
+
+To check out and compile the logging hook use the following commands:
+
+```
+git clone https://github.com/google/hadoop-migration-assessment-tools.git
+cd hadoop-migration-assessment-tools/
+bazel build //dist:all
+```
+
+Zip file will be available under `bazel-bin/dist` directory.
+
+### Testing
+
+Run all tests:
+
+```
+bazel test //...
+```
