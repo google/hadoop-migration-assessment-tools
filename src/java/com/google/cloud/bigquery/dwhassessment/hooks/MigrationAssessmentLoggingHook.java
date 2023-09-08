@@ -20,7 +20,9 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.Version
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
+import java.io.File;
 import java.time.Clock;
+import java.util.Arrays;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
@@ -46,8 +48,21 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
     try {
       EventLogger logger = EventLogger.getInstance(hookContext.getConf(), Clock.systemUTC());
       logger.handle(hookContext);
-    } catch (Exception e) {
-      LOG.error("Got exception while processing event", e);
+    } catch (Throwable e) {
+      String baseMessage = "Got an exception while processing event.";
+      // Handles errors such as NoSuchMethodError, NoClassDefFoundError
+      if (e instanceof LinkageError) {
+        String classpath =
+            Arrays.toString(System.getProperty("java.class.path").split(File.pathSeparator));
+        String errorMessage =
+            baseMessage
+                + " Please contact bq-edw-migration-support@google.com with this log data."
+                + " Classpath is {}";
+
+        LOG.error(errorMessage, classpath, e);
+      } else {
+        LOG.error(baseMessage, e);
+      }
     }
   }
 }
