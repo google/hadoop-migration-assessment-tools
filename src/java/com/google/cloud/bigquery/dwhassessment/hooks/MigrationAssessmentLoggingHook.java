@@ -29,7 +29,7 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Hook, which captures query events and stores them as {@link GenericRecord}. */
+/** Hook, which captures query events and stores them as {@link GenericRecord}.     */
 public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(LOGGER_NAME);
