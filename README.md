@@ -3,6 +3,8 @@
 
 This repository contains tools to enable Hadoop users in collecting required data required by Migration Assessment service.
 
+Please follow the BigQuery Migration Assessment [documentation](https://cloud.google.com/bigquery/docs/migration-assessment) for more details on how to use a new tool.
+
 ## License
 
 Copyright 2022-2023 Google LLC
