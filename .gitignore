@@ -1,5 +1,6 @@
 .idea
 .ijwb
+.aswb
 *.sw[a-z]
 bazel-*
 .DS_Store
