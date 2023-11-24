@@ -18,7 +18,6 @@ package com.google.cloud.bigquery.dwhassessment.hooks.logger.utils;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.hadoop.hive.ql.exec.DDLTask;
 import org.apache.hadoop.hive.ql.exec.Task;
 
 /** Helper for retrieving tasks of the target type from the query plan tasks. */
@@ -26,8 +25,9 @@ public final class TasksRetriever {
   private TasksRetriever() {}
 
   public static boolean hasDdlTask(List<Task<? extends Serializable>> tasks) {
+    Class<?> ddlTaskClass = ReflectionMethods.INSTANCE.getDdlTaskClass();
     for (Task<? extends Serializable> task : tasks) {
-      if (task instanceof DDLTask) {
+      if (ddlTaskClass.isInstance(task)) {
         return true;
       }
 
