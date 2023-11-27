@@ -31,7 +31,7 @@ java_library(
         "@maven//:org_apache_hadoop_hadoop_yarn_api",
         "@maven//:org_apache_hadoop_hadoop_yarn_client",
         "@maven//:org_apache_hive_hive_exec",
-        "@maven//:org_apache_tez_tez_api_0_8_5",
+        "@maven//:org_apache_tez_tez_api",
         "@maven//:org_slf4j_slf4j_api",
     ],
 )

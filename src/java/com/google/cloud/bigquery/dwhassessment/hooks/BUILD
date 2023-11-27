@@ -23,7 +23,7 @@ java_library(
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger/exception",
         "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger/utils",
-        "@maven//:org_apache_hadoop_hadoop_mapred_0_22_0",
+        "@maven//:org_apache_hadoop_hadoop_mapred",
         "@maven//:org_apache_hive_hive_exec",
         "@maven//:org_slf4j_slf4j_api",
     ],
