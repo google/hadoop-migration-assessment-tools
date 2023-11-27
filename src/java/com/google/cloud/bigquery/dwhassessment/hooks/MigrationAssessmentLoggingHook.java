@@ -20,6 +20,7 @@ import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.Version
 import static com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.VersionValidator.isHiveVersionSupported;
 
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.EventLogger;
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.exception.LoggingHookFatalException;
 import java.io.File;
 import java.time.Clock;
 import java.util.Arrays;
@@ -51,7 +52,7 @@ public class MigrationAssessmentLoggingHook implements ExecuteWithHookContext {
     } catch (Throwable e) {
       String baseMessage = "Got an exception while processing event.";
       // Handles errors such as NoSuchMethodError, NoClassDefFoundError
-      if (e instanceof LinkageError) {
+      if (e instanceof LinkageError | e instanceof LoggingHookFatalException) {
         String classpath =
             Arrays.toString(System.getProperty("java.class.path").split(File.pathSeparator));
         String errorMessage =

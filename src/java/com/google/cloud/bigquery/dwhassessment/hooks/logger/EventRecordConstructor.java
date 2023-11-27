@@ -25,12 +25,14 @@ import static org.apache.hadoop.hive.ql.hooks.Entity.Type.DATABASE;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.PARTITION;
 import static org.apache.hadoop.hive.ql.hooks.Entity.Type.TABLE;
 
+import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.ReflectionMethods;
 import com.google.cloud.bigquery.dwhassessment.hooks.logger.utils.TasksRetriever;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -41,10 +43,13 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.MapRedStats;
 import org.apache.hadoop.hive.ql.QueryPlan;
+import org.apache.hadoop.hive.ql.exec.Task;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.exec.tez.TezTask;
 import org.apache.hadoop.hive.ql.hooks.Entity;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
+import org.apache.hadoop.hive.ql.hooks.ReadEntity;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.mapred.Counters;
@@ -92,6 +97,8 @@ public class EventRecordConstructor {
     // Make a copy so that we do not modify hookContext conf.
     HiveConf conf = new HiveConf(hookContext.getConf());
     ExecutionMode executionMode = getExecutionMode(plan);
+    Set<ReadEntity> inputs = ReflectionMethods.INSTANCE.getInputs(plan);
+    Set<WriteEntity> outputs = ReflectionMethods.INSTANCE.getOutputs(plan);
 
     return new GenericRecordBuilder(QUERY_EVENT_SCHEMA)
         .set("QueryId", plan.getQueryId())
@@ -104,10 +111,10 @@ public class EventRecordConstructor {
         .set("ExecutionMode", executionMode.name())
         .set("ExecutionEngine", conf.get("hive.execution.engine"))
         .set("Queue", retrieveSessionQueueName(conf, executionMode))
-        .set("TablesRead", getTablesFromEntitySet(plan.getInputs()))
-        .set("TablesWritten", getTablesFromEntitySet(plan.getOutputs()))
-        .set("PartitionsRead", getPartitionsFromEntitySet(plan.getInputs()))
-        .set("PartitionsWritten", getPartitionsFromEntitySet(plan.getOutputs()))
+        .set("TablesRead", getTablesFromEntitySet(inputs))
+        .set("TablesWritten", getTablesFromEntitySet(outputs))
+        .set("PartitionsRead", getPartitionsFromEntitySet(inputs))
+        .set("PartitionsWritten", getPartitionsFromEntitySet(outputs))
         .set("SessionId", hookContext.getSessionId())
         .set("InvokerInfo", conf.getLogIdVar(hookContext.getSessionId()))
         .set("ThreadName", hookContext.getThreadId())
@@ -118,8 +125,8 @@ public class EventRecordConstructor {
         .set("HiveAddress", getHiveInstanceAddress(hookContext))
         .set("HiveInstanceType", getHiveInstanceType(hookContext))
         .set("OperationId", hookContext.getOperationId())
-        .set("DatabasesRead", getDatabasesFromEntitySet(plan.getInputs()))
-        .set("DatabasesWritten", getDatabasesFromEntitySet(plan.getOutputs()))
+        .set("DatabasesRead", getDatabasesFromEntitySet(inputs))
+        .set("DatabasesWritten", getDatabasesFromEntitySet(outputs))
         .set("DefaultDatabase", SessionState.get().getCurrentDatabase())
         .build();
   }
@@ -201,7 +208,8 @@ public class EventRecordConstructor {
   }
 
   private static Optional<String> dumpTezCounters(QueryPlan plan) {
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    List<Task<?>> rootTasks = ReflectionMethods.INSTANCE.getRootTasks(plan);
+    List<TezTask> tezTasks = Utilities.getTezTasks(rootTasks);
     List<TezCounters> list =
         tezTasks.stream().map(TezTask::getTezCounters).collect(Collectors.toList());
     return generateCountersJson(
@@ -245,10 +253,11 @@ public class EventRecordConstructor {
   }
 
   private String dumpPerfData(PerfLogger perfLogger) {
+    Map<String, Long> perfStats = ReflectionMethods.INSTANCE.getStartTimes(perfLogger);
     JSONObject perfObj = new JSONObject();
     long now = clock.millis();
 
-    for (String key : perfLogger.getStartTimes().keySet()) {
+    for (String key : perfStats.keySet()) {
       long duration = perfLogger.getDuration(key);
       // Some perf logger entries are finished after the hook. Make the best effort to capture them
       // here with the duration at the current time.
@@ -302,11 +311,13 @@ public class EventRecordConstructor {
 
   private static ExecutionMode getExecutionMode(QueryPlan plan) {
     // Utilities methods check for null, so possibly it is nullable
-    if (plan.getRootTasks() != null && plan.getRootTasks().isEmpty()) {
+    List<Task<?>> rootTasks = ReflectionMethods.INSTANCE.getRootTasks(plan);
+
+    if (rootTasks != null && rootTasks.isEmpty()) {
       return ExecutionMode.CLIENT_ONLY;
     }
 
-    List<TezTask> tezTasks = Utilities.getTezTasks(plan.getRootTasks());
+    List<TezTask> tezTasks = Utilities.getTezTasks(rootTasks);
     if (!tezTasks.isEmpty()) {
       // Need to go in and check if any of the tasks is running in LLAP mode.
       for (TezTask tezTask : tezTasks) {
@@ -317,11 +328,11 @@ public class EventRecordConstructor {
       return ExecutionMode.TEZ;
     }
 
-    if (!Utilities.getMRTasks(plan.getRootTasks()).isEmpty()) {
+    if (!Utilities.getMRTasks(rootTasks).isEmpty()) {
       return ExecutionMode.MR;
     }
 
-    if (!Utilities.getSparkTasks(plan.getRootTasks()).isEmpty()) {
+    if (!Utilities.getSparkTasks(rootTasks).isEmpty()) {
       return ExecutionMode.SPARK;
     }
 

@@ -16,12 +16,6 @@ load("@rules_java//java:defs.bzl", "java_library")
 package(default_visibility = ["//src:internal"])
 
 java_library(
-    name = "utils",
+    name = "exception",
     srcs = glob(["*.java"]),
-    deps = [
-        "//src/java/com/google/cloud/bigquery/dwhassessment/hooks/logger/exception",
-        "@maven//:commons_lang_commons_lang",
-        "@maven//:org_apache_hive_hive_exec",
-        "@maven//:org_slf4j_slf4j_api",
-    ],
 )
