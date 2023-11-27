@@ -137,7 +137,7 @@ public class EventLogger {
     // before we start the pre hook processing and causes inconsistent events publishing.
     QueryPlan plan = hookContext.getQueryPlan();
     if (plan == null) {
-      LOG.debug("Received null query plan.");
+      LOG.debug("Received null query plan, skipping query event.");
       return;
     }
 
@@ -147,7 +147,7 @@ public class EventLogger {
   }
 
   private void tryWriteEvent(GenericRecord event, HookType hookType) {
-    LOG.debug("Trying to handle an event '{}' for query '{}'", hookType, event.get("QueryId"));
+    LOG.debug("Trying to handle an event '{}' for record '{}'", hookType, event);
     try {
       // ScheduledThreadPoolExecutor uses an unbounded queue which cannot be replaced with a
       // bounded queue.
