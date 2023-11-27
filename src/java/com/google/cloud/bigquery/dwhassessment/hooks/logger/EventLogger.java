@@ -156,10 +156,13 @@ public class EventLogger {
         logWriter.execute(() -> writeEventWithRetries(event));
       } else {
         LOG.warn(
-            "Writer queue full. Ignoring event '{}' for query '{}'", hookType, event.get("QueryId"));
+            "Writer queue full. Ignoring event '{}' for query '{}'",
+            hookType,
+            event.get("QueryId"));
       }
     } catch (RejectedExecutionException e) {
-      LOG.warn("Writer queue full. Ignoring event '{}' for query '{}'", hookType, event.get("QueryId"));
+      LOG.warn(
+          "Writer queue full. Ignoring event '{}' for query '{}'", hookType, event.get("QueryId"));
     }
   }
 
